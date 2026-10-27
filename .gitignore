@@ -1,0 +1,21 @@
+# Build output
+/dist/
+/keepwarm
+/keepwarm-*
+
+# Go test / coverage artifacts
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# Go workspace
+go.work
+go.work.sum
+
+# Editor / OS cruft
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~

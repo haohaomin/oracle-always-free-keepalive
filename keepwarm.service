@@ -1,0 +1,27 @@
+[Unit]
+Description=keepwarm - keep an OCI Always Free instance from being reclaimed for idleness
+Documentation=https://github.com/0xarkstar/keepwarm
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Note: literal percent signs must be escaped as %% in systemd unit files.
+ExecStart=/usr/local/bin/keepwarm -mem 30%% -interval 30s
+# Lowest scheduling priority so any real workload always preempts keepwarm.
+Nice=19
+Restart=always
+RestartSec=10
+
+# --- Light hardening ---
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

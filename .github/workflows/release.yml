@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # required to create a release and upload assets
+
+jobs:
+  release:
+    name: Build and publish binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          check-latest: true
+
+      - name: Cross-compile binaries
+        env:
+          # The tag name (e.g. v1.2.3) is the version; bound via env to avoid
+          # any shell injection through the ref name.
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          LDFLAGS="-s -w -X main.Version=${VERSION}"
+          targets="linux/amd64 linux/arm64 darwin/arm64"
+          for t in $targets; do
+            os="${t%/*}"; arch="${t#*/}"
+            out="dist/keepwarm-${os}-${arch}"
+            echo "building $out"
+            GOOS="$os" GOARCH="$arch" go build -ldflags "$LDFLAGS" -o "$out" ./
+          done
+          (cd dist && sha256sum keepwarm-* > SHA256SUMS)
+          ls -lh dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/keepwarm-linux-amd64
+            dist/keepwarm-linux-arm64
+            dist/keepwarm-darwin-arm64
+            dist/SHA256SUMS
