@@ -138,6 +138,8 @@ func TestBurnDuration(t *testing.T) {
 	}
 }
 
+const mib = 1 << 20
+
 func TestMemoryHolderAdjust(t *testing.T) {
 	h := NewMemoryHolder(nil)
 
@@ -145,27 +147,28 @@ func TestMemoryHolderAdjust(t *testing.T) {
 		t.Fatalf("new holder held = %d, want 0", h.HeldBytes())
 	}
 
-	h.Adjust(2 * pageSize)
-	if got := h.HeldBytes(); got != 2*pageSize {
-		t.Errorf("after grow held = %d, want %d", got, 2*pageSize)
+	// Steps deliberately exceed the resize dead-band so exact resizing is exercised.
+	h.Adjust(16 * mib)
+	if got := h.HeldBytes(); got != 16*mib {
+		t.Errorf("after grow held = %d, want %d", got, 16*mib)
 	}
 
 	// Grow again.
-	h.Adjust(10 * pageSize)
-	if got := h.HeldBytes(); got != 10*pageSize {
-		t.Errorf("after second grow held = %d, want %d", got, 10*pageSize)
+	h.Adjust(32 * mib)
+	if got := h.HeldBytes(); got != 32*mib {
+		t.Errorf("after second grow held = %d, want %d", got, 32*mib)
 	}
 
 	// Shrink.
-	h.Adjust(pageSize)
-	if got := h.HeldBytes(); got != pageSize {
-		t.Errorf("after shrink held = %d, want %d", got, pageSize)
+	h.Adjust(16 * mib)
+	if got := h.HeldBytes(); got != 16*mib {
+		t.Errorf("after shrink held = %d, want %d", got, 16*mib)
 	}
 
 	// No-op when unchanged.
-	h.Adjust(pageSize)
-	if got := h.HeldBytes(); got != pageSize {
-		t.Errorf("after no-op held = %d, want %d", got, pageSize)
+	h.Adjust(16 * mib)
+	if got := h.HeldBytes(); got != 16*mib {
+		t.Errorf("after no-op held = %d, want %d", got, 16*mib)
 	}
 
 	// Release.
@@ -173,6 +176,71 @@ func TestMemoryHolderAdjust(t *testing.T) {
 	if got := h.HeldBytes(); got != 0 {
 		t.Errorf("after release held = %d, want 0", got)
 	}
+}
+
+// TestMemoryHolderDeadbandImmuneToNoise is the regression guard for the
+// over-hold oscillation: sub-dead-band deltas must not reallocate the buffer.
+// The original implementation allocated a fresh array on every call, and while
+// the previous array was still resident the next /proc/meminfo sample counted
+// both, so `organic` looked ~2x too large, the deficit collapsed, and the holder
+// re-grew - driving observed utilization to ~46% for a 30% target.
+func TestMemoryHolderDeadbandImmuneToNoise(t *testing.T) {
+	h := NewMemoryHolder(nil)
+	h.Adjust(64 * mib)
+	if got := h.HeldBytes(); got != 64*mib {
+		t.Fatalf("setup held = %d, want %d", got, 64*mib)
+	}
+	before := &h.buf[0]
+
+	// Ordinary measurement noise: a few MiB either way.
+	for _, v := range []int{66 * mib, 63 * mib, 65 * mib, 64*mib + 1024, 64*mib - 1024, 64 * mib} {
+		h.Adjust(uint64(v))
+		if got := h.HeldBytes(); got != 64*mib {
+			t.Errorf("Adjust(%d) moved held to %d, want it pinned at %d", v, got, 64*mib)
+		}
+		if &h.buf[0] != before {
+			t.Errorf("Adjust(%d) reallocated the buffer despite being inside the dead-band", v)
+		}
+	}
+}
+
+// TestMemoryHolderActsBeyondDeadband verifies the dead-band is not so wide that
+// genuine changes are ignored (e.g. a business workload freeing memory).
+func TestMemoryHolderActsBeyondDeadband(t *testing.T) {
+	h := NewMemoryHolder(nil)
+	h.Adjust(64 * mib)
+	before := &h.buf[0]
+
+	h.Adjust(96 * mib) // +32 MiB, well outside the dead-band
+	if got := h.HeldBytes(); got != 96*mib {
+		t.Errorf("held = %d, want %d", got, 96*mib)
+	}
+	if &h.buf[0] == before {
+		t.Error("buffer was not reallocated on a genuine 32 MiB growth")
+	}
+
+	// A real release must be honoured even though it is a "delta".
+	h.Adjust(0)
+	if got := h.HeldBytes(); got != 0 {
+		t.Errorf("after release to 0 held = %d, want 0", got)
+	}
+	if len(h.buf) != 0 {
+		t.Errorf("buffer not dropped on release: len = %d", len(h.buf))
+	}
+}
+
+// TestMemoryHolderDeadbandScales asserts the dead-band grows with the amount
+// held so a large target is not churned by proportionally larger noise.
+func TestMemoryHolderDeadbandScales(t *testing.T) {
+	h := NewMemoryHolder(nil)
+	if got := h.deadband(); got != minResizeTolerance {
+		t.Errorf("deadband at 0 held = %d, want %d", got, minResizeTolerance)
+	}
+	h.Adjust(1 << 30) // 1 GiB
+	if got, want := h.deadband(), (1<<30)/toleranceDivisor; got != want {
+		t.Errorf("deadband at 1 GiB = %d, want %d", got, want)
+	}
+	h.Release()
 }
 
 func TestNewNetPingerDefaults(t *testing.T) {

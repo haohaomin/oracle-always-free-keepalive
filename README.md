@@ -166,7 +166,12 @@ keepwarm -verbose -interval 5s -status
 
 ## How the adaptive math works
 
-**Memory.** Each tick it reads total and used memory. Your *organic* usage is `used − whatKeepwarmHolds`. To reach the target it holds `target − organic`, clamped to `[0, total]`. Held pages are touched (one byte per 4 KiB page) so the kernel keeps them resident and counts them as used. If your workload grows, keepwarm shrinks; if it shrinks, keepwarm grows back.
+**Memory.** Each tick it reads total and used memory. Your *organic* usage is `used − whatKeepwarmHolds`. To reach the target it holds `target − organic`, clamped to `[0, total]`. Held pages are touched (one page size apart) so the kernel keeps them resident and counts them as used. If your workload grows, keepwarm shrinks; if it shrinks, keepwarm grows back.
+
+Two details keep the loop honest (see [Fixes](#fixes-over-0xarkstarkeepwarm) below):
+
+- **Resize dead-band.** Changes smaller than ~1.6 % of what is currently held (minimum 8 MiB) are ignored. Reacting to every few-MiB wobble in `MemAvailable` caused pointless reallocation churn.
+- **Immediate page return.** When the holder resizes, the previous buffer is handed back to the OS straight away (`debug.FreeOSMemory`) instead of waiting for the Go runtime to scavenge it. While those stale pages stayed resident, the next `/proc/meminfo` read counted *old + new* at once, so `organic` looked far larger than it was, the deficit collapsed, and the holder re-grew — a feedback loop that drove observed utilization well above the configured target.
 
 **CPU.** Each tick it samples `/proc/stat` twice (across the interval) to get current utilization `u`. To raise the *average* over the interval from `u` to the floor `f`, it pegs the CPU for a fraction of the interval:
 
@@ -195,6 +200,60 @@ make clean
 ## Safety & ethics
 
 `keepwarm` is intended **only** for keeping **your own, legitimately provisioned** OCI Always Free instance alive. It is designed to be **low-waste by construction** — it adds the minimum load needed to clear the idle threshold and nothing more, runs at the lowest scheduling priority, and never runs bandwidth-heavy speedtests. Please respect Oracle's terms of service and resource limits; don't use it to circumvent quotas or to keep resources you aren't entitled to.
+
+## Fixes over `0xarkstar/keepwarm`
+
+This tree is based on `0xarkstar/keepwarm` at commit
+`24cde41bbf7522b77b4308829764e710f1d5ddc9` and adds the following.
+
+### `v0.1.1-fix` — memory holder overshot its target (over-hold oscillation)
+
+**Symptom.** With `-mem 30%` on a 12 GB (Ampere A1) instance, observed total
+utilization did not settle at 30 %. It cycled between roughly **15 % and 47 %**,
+and `RSS` of the holder repeatedly doubled (≈1.5 GiB → ≈3.1 GiB) before
+collapsing. The instance was therefore holding ~3.1 GiB when only ~1.8 GiB was
+needed — wasteful, and the configured target was never actually maintained.
+
+**Root cause.** `MemoryHolder.Adjust` allocated a brand-new buffer on *every*
+call, however small the delta, and the previous array stayed resident until the
+Go runtime happened to collect and scavenge it. Two consequences compounded:
+
+1. A one-off few-MiB wobble in `MemAvailable` was enough to trigger a full
+   re-allocation of a multi-hundred-MiB buffer.
+2. During the window where the old array was still resident, the next
+   `/proc/meminfo` reading counted **old + new**. `TargetHeld` then computed
+   `organic = used − held` from an inflated `used`, concluded the box was far
+   busier than it really was, collapsed the deficit, and the holder re-grew on a
+   later tick — repeating indefinitely.
+
+**Fix** (`internal/waste/memory.go`):
+
+- Added a **resize dead-band**: deltas below `max(8 MiB, held/64)` are ignored,
+  so measurement noise no longer causes reallocation churn.
+- **Shrink** now drops the old buffer, returns its pages to the OS, and only then
+  allocates the replacement — so a shrink under memory pressure never
+  transiently needs old + new.
+- **Grow** now returns the replaced array's pages to the OS immediately after the
+  swap, closing the residual half of the loop.
+- Growth uses geometric capacity so incremental growth stops reallocating.
+- `pageSize` is taken from `os.Getpagesize()` instead of a hard-coded 4096.
+- `clampToInt` prevents `int` overflow when clamping huge targets on 32-bit.
+
+**Verification** (Oracle Cloud `VM.Standard.A1.Flex`, 2 OCPU / 12 GB,
+`-mem 30% -cpu 0 -interval 30s`, 400 s of sampling at 20 s intervals):
+
+| | before | after |
+|---|---|---|
+| observed total memory utilization | 15.5 % ↔ 46.6 % | **29.9 % – 30.3 %** |
+| holder RSS | 17 MiB ↔ 3191 MiB (doubling) | **1551 MiB, constant** |
+| OOM events / restarts | 0 / 0 | 0 / 0 |
+
+A unit-test regression guard (`TestMemoryHolderDeadbandImmuneToNoise`) asserts
+that sub-dead-band deltas never reallocate the backing array; against the
+unpatched implementation the equivalent assertion fails (a 67 109 888-byte
+buffer was reallocated for a 1 KiB delta).
+
+CPU and network modes are unchanged by this fix.
 
 ## License
 
