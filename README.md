@@ -48,27 +48,37 @@ The well-known [`layou233/NeverIdle`](https://github.com/layou233/NeverIdle) is 
 
 ## Install
 
-> ⚠️ **先说清楚**：本仓库是 `0xarkstar/keepwarm` 的修复分支，上游**尚未**合并
-> `v0.1.1-fix`（内存持有超额振荡修复，见 [Fixes](#fixes-over-0xarkstarkeepwarm)）。
-> **Option A / Option B 安装的是本仓库的源码，含修复。**
-> 下面那个"一键脚本"和 Option C 下载的是**上游 release 二进制**，
-> **不含本次修复** —— 除非你就是要复现上游行为，否则不要用。
+> 本仓库是 `0xarkstar/keepwarm` 的修复分支，上游**尚未**合并 `v0.1.1-fix`
+> （内存持有超额振荡修复，见 [Fixes](#fixes-over-0xarkstarkeepwarm)）。
+> **下面的安装方式都指向本仓库的发布产物，已含修复。**
+>
+> **发布策略**：每次向 `main` 推送**非文档**改动（源码 / `go.mod` / unit / `install.sh` /
+> workflow），CI 会跑 `vet` + `test`，然后交叉编译 `linux/arm64`、`linux/amd64`、`darwin/arm64`，
+> 生成 `SHA256SUMS`，并以**日期标签**自动发布新版本：`vYYYY.MM.DD`，
+> 同一天多次发布则为 `vYYYY.MM.DD.2`、`.3`…… 纯文档改动不会触发发布。
 
-### Quickest — one-liner (no Go needed) ⚠️ 装的是上游版，无修复
+### Quickest — one-liner (no Go needed)
 
-Downloads the latest release binary for your architecture, verifies its SHA-256 checksum, installs it to `/usr/local/bin`, and enables the systemd service:
+Downloads the **latest release binary for this repo** (not upstream), verifies its
+SHA-256 against `SHA256SUMS`, installs it to `/usr/local/bin`, and enables the systemd service:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/0xarkstar/keepwarm/main/scripts/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/haohaomin/oracle-always-free-keepalive/main/scripts/install.sh | sudo bash
 ```
 
-Pin a version with `KEEPWARM_VERSION=v0.1.0 curl ... | sudo bash`. Uninstall with `curl ... | sudo bash -s -- --uninstall`.
+Pin a specific date tag with `KEEPWARM_VERSION=v2026.10.30 curl ... | sudo bash`.
+Uninstall with `curl ... | sudo bash -s -- --uninstall`.
+
+> 注意：`go install github.com/0xarkstar/keepwarm@latest` 会从**上游**模块路径取代码，
+> **不含本修复**。要用修复版请走上面的一键安装或下面的 Option B。
 
 ### Option A — `go install`
 
 ```sh
 go install github.com/0xarkstar/keepwarm@latest
 ```
+
+> ⚠️ 这条拉的是**上游**代码，**不含** `v0.1.1-fix`。需要修复版请用一键安装 / Option B。
 
 The binary lands in `$(go env GOPATH)/bin/keepwarm`. Move it to `/usr/local/bin` and use the systemd path below for persistence.
 
@@ -96,15 +106,14 @@ Uninstall:
 sudo ./scripts/install.sh --uninstall
 ```
 
-### Option C — release binary (manual) ⚠️ 上游 release，无修复
+### Option C — release binary (manual)
 
-> 这一节指向**上游**发布页，其二进制**不含** `v0.1.1-fix`。
-> 想要含修复的二进制，请用 Option A/B 自行构建（或在 CI/本地交叉编译后分发）。
-
-Download the binary for your architecture from the [Releases](https://github.com/0xarkstar/keepwarm/releases) page (`keepwarm-linux-arm64` for the OCI Ampere A1 shape, `keepwarm-linux-amd64` for the AMD shape) and verify it against `SHA256SUMS`:
+Download the binary for your architecture from **[this repo's Releases](https://github.com/haohaomin/oracle-always-free-keepalive/releases)** page (`keepwarm-linux-arm64` for the OCI Ampere A1 shape, `keepwarm-linux-amd64` for the AMD shape) and verify it against `SHA256SUMS`:
 
 ```sh
-curl -fsSLO https://github.com/0xarkstar/keepwarm/releases/latest/download/keepwarm-linux-arm64
+curl -fsSLO https://github.com/haohaomin/oracle-always-free-keepalive/releases/latest/download/keepwarm-linux-arm64
+curl -fsSLO https://github.com/haohaomin/oracle-always-free-keepalive/releases/latest/download/SHA256SUMS
+sha256sum -c SHA256SUMS --ignore-missing
 chmod +x keepwarm-linux-arm64 && sudo mv keepwarm-linux-arm64 /usr/local/bin/keepwarm
 ```
 

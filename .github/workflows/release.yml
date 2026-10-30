@@ -1,12 +1,26 @@
 name: Release
 
+# Two ways in:
+#   * push to main        -> publish a date-based release (vYYYY.MM.DD[.N])
+#   * push an explicit tag -> publish that tag as-is
+# Docs-only pushes are ignored so a typo fix in a README does not cut a release.
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+    tags: ["v*"]
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - ".gitignore"
+  workflow_dispatch:
 
 permissions:
-  contents: write # required to create a release and upload assets
+  contents: write # required to create a tag + release and upload assets
+
+# Never run two releases at once; a later push waits instead of racing for a tag.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -22,29 +36,60 @@ jobs:
           go-version: "1.23"
           check-latest: true
 
+      # Tag naming is date-based by design: vYYYY.MM.DD, and vYYYY.MM.DD.N when
+      # more than one release is cut on the same day.
+      - name: Resolve release tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            BASE="v$(date -u +%Y.%m.%d)"
+            TAG="$BASE"
+            n=1
+            # Only a 2xx response means the tag already exists.
+            while gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" >/dev/null 2>&1; do
+              n=$((n + 1))
+              TAG="${BASE}.${n}"
+            done
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Resolved tag: ${TAG}"
+
+      - name: Test before publishing
+        run: |
+          set -euo pipefail
+          go vet ./...
+          go test ./...
+
       - name: Cross-compile binaries
         env:
-          # The tag name (e.g. v1.2.3) is the version; bound via env to avoid
-          # any shell injection through the ref name.
-          VERSION: ${{ github.ref_name }}
+          # Bound via env to avoid any shell injection through the ref name.
+          VERSION: ${{ steps.tag.outputs.tag }}
         run: |
           set -euo pipefail
           mkdir -p dist
           LDFLAGS="-s -w -X main.Version=${VERSION}"
-          targets="linux/amd64 linux/arm64 darwin/arm64"
-          for t in $targets; do
+          for t in linux/amd64 linux/arm64 darwin/arm64; do
             os="${t%/*}"; arch="${t#*/}"
             out="dist/keepwarm-${os}-${arch}"
             echo "building $out"
-            GOOS="$os" GOARCH="$arch" go build -ldflags "$LDFLAGS" -o "$out" ./
+            GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "$LDFLAGS" -o "$out" ./
           done
           (cd dist && sha256sum keepwarm-* > SHA256SUMS)
-          ls -lh dist
+          echo "--- SHA256SUMS ---"; cat dist/SHA256SUMS
 
-      - name: Create GitHub Release
+      - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ steps.tag.outputs.tag }}
           generate_release_notes: true
+          make_latest: true
           files: |
             dist/keepwarm-linux-amd64
             dist/keepwarm-linux-arm64

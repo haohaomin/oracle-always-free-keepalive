@@ -19,11 +19,11 @@
 #   sudo ./scripts/install.sh --uninstall
 #
 # Env:
-#   KEEPWARM_VERSION=v0.1.0   pin a release tag (default: latest)
+#   KEEPWARM_VERSION=v2026.10.30   pin a release tag (default: latest)
 #
 set -euo pipefail
 
-REPO="0xarkstar/keepwarm"
+REPO="haohaomin/oracle-always-free-keepalive"
 BIN_NAME="keepwarm"
 BIN_DEST="/usr/local/bin/${BIN_NAME}"
 UNIT_NAME="keepwarm.service"
@@ -224,7 +224,7 @@ Usage:
   curl -fsSL ${RAW_BASE}/scripts/install.sh | sudo bash
 
 Env:
-  KEEPWARM_VERSION=v0.1.0   pin a release tag (default: latest)
+  KEEPWARM_VERSION=v2026.10.30   pin a release tag (default: latest)
 EOF
       ;;
     *) die "unknown argument: $1 (try --help)" ;;
