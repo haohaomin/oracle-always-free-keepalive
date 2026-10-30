@@ -48,7 +48,13 @@ The well-known [`layou233/NeverIdle`](https://github.com/layou233/NeverIdle) is 
 
 ## Install
 
-### Quickest — one-liner (no Go needed)
+> ⚠️ **先说清楚**：本仓库是 `0xarkstar/keepwarm` 的修复分支，上游**尚未**合并
+> `v0.1.1-fix`（内存持有超额振荡修复，见 [Fixes](#fixes-over-0xarkstarkeepwarm)）。
+> **Option A / Option B 安装的是本仓库的源码，含修复。**
+> 下面那个"一键脚本"和 Option C 下载的是**上游 release 二进制**，
+> **不含本次修复** —— 除非你就是要复现上游行为，否则不要用。
+
+### Quickest — one-liner (no Go needed) ⚠️ 装的是上游版，无修复
 
 Downloads the latest release binary for your architecture, verifies its SHA-256 checksum, installs it to `/usr/local/bin`, and enables the systemd service:
 
@@ -90,7 +96,10 @@ Uninstall:
 sudo ./scripts/install.sh --uninstall
 ```
 
-### Option C — release binary (manual)
+### Option C — release binary (manual) ⚠️ 上游 release，无修复
+
+> 这一节指向**上游**发布页，其二进制**不含** `v0.1.1-fix`。
+> 想要含修复的二进制，请用 Option A/B 自行构建（或在 CI/本地交叉编译后分发）。
 
 Download the binary for your architecture from the [Releases](https://github.com/0xarkstar/keepwarm/releases) page (`keepwarm-linux-arm64` for the OCI Ampere A1 shape, `keepwarm-linux-amd64` for the AMD shape) and verify it against `SHA256SUMS`:
 
