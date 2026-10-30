@@ -1,100 +1,123 @@
-# keepwarm — Oracle Cloud (OCI) Always Free 实例保活 / 防闲置回收
+# keepwarm — 甲骨文云 / Oracle Cloud (OCI) Always Free 实例保活 · 防闲置回收
+
+**简体中文** | [English](README.en.md)
 
 [![CI](https://github.com/haohaomin/oracle-always-free-keepalive/actions/workflows/ci.yml/badge.svg)](https://github.com/haohaomin/oracle-always-free-keepalive/actions/workflows/ci.yml)
+[![GitHub stars](https://img.shields.io/github/stars/haohaomin/oracle-always-free-keepalive?style=social)](https://github.com/haohaomin/oracle-always-free-keepalive/stargazers)
+[![Release](https://img.shields.io/github/v/release/haohaomin/oracle-always-free-keepalive)](https://github.com/haohaomin/oracle-always-free-keepalive/releases)
+[![Downloads](https://img.shields.io/github/downloads/haohaomin/oracle-always-free-keepalive/total)](https://github.com/haohaomin/oracle-always-free-keepalive/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Go 1.23+](https://img.shields.io/badge/Go-1.23+-00ADD8.svg)](https://go.dev/)
-[![Platform](https://img.shields.io/badge/platform-linux%2Farm64%20%7C%20linux%2Famd64-blue.svg)](#platform-support)
+[![Platform](https://img.shields.io/badge/platform-linux%2Farm64%20%7C%20linux%2Famd64-blue.svg)](#平台支持)
 
-**Adaptive keepalive for Oracle Cloud Always Free instances** — stops OCI from
-reclaiming your free-tier VM for idleness. 甲骨文云（Oracle Cloud / OCI）**永久免费**
-服务器保活工具：按实例自身用量**自适应**补足内存或 CPU，防止被判定为闲置而回收。
-同时支持 **VM.Standard.A1.Flex（ARM64）** 与 **VM.Standard.E2.1.Micro（AMD64）**，
-systemd 常驻、纯标准库、无外部依赖、可交叉编译。
+甲骨文云（Oracle Cloud / OCI）**永久免费（Always Free）**服务器保活工具：按实例自身用量
+**自适应**补足内存或 CPU，防止免费实例被判定为闲置而回收。同时支持
+**VM.Standard.A1.Flex（ARM64，Ampere）** 与 **VM.Standard.E2.1.Micro（AMD64）**，
+systemd 常驻、纯 Go 标准库、零外部依赖、可静态交叉编译。
 
-A tiny, **dependency-free** daemon that stops your Oracle Cloud (OCI) **Always Free** compute instance from being reclaimed for being idle — without burning CPU or bandwidth you don't need. It is **memory-first** (the cheapest, most reliable defeater) and **adaptive** (it measures your instance's own utilization and adds only the minimum extra load required).
+> Adaptive keepalive for Oracle Cloud (OCI) Always Free instances — stops idle
+> reclamation without burning CPU or bandwidth you don't need. Static, dependency-free.
 
-## Why this exists
+## 目录
 
-OCI periodically reclaims idle Always Free compute instances. Per Oracle's policy, an instance is considered **idle** only when, over a **rolling 7-day window**, **ALL THREE** of the following are below threshold (commonly cited as ~20%, historically 10%):
+- [为什么需要它](#为什么需要它)
+- [为什么优先用内存](#为什么优先用内存)
+- [与 NeverIdle 的区别](#与-neveridle-的区别)
+- [安装](#安装)
+- [快速开始](#快速开始)
+- [参数](#参数)
+- [自适应原理](#自适应原理)
+- [平台支持](#平台支持)
+- [从源码构建](#从源码构建)
+- [安全与合理使用](#安全与合理使用)
+- [相对上游的修复](#相对上游的修复)
+- [相关关键词](#相关关键词)
+- [Star 趋势](#star-趋势)
 
-1. **CPU** utilization (95th percentile)
-2. **Network** utilization
-3. **Memory** utilization
+## 为什么需要它
 
-Because it is an **AND** condition, keeping **any single one** of these dimensions above threshold is sufficient to prevent reclamation.
+OCI 会周期性回收闲置的 Always Free 计算实例。按 Oracle 的政策，只有在**滚动 7 天窗口**内，
+下面**三项全部**低于阈值（常见说法约 20%，早期文档写 10%）时，实例才算「闲置」：
 
-`keepwarm` exploits that: it keeps the **memory** dimension up by default, because holding memory is by far the cheapest defeater.
+1. **CPU** 利用率（95 分位）
+2. **网络** 利用率
+3. **内存** 利用率
 
-### Why memory-first?
+因为这是 **AND** 条件，所以**任意一项**高于阈值即可避免回收。
 
-- **Near-zero CPU cost.** Held memory just sits there. No spinning cores, no heat, no noisy neighbor impact.
-- **Rock-solid 95th percentile.** A constant amount of resident memory means its utilization is flat and high — its 95th percentile is always above threshold, no matter when OCI samples.
-- **No bandwidth waste.** It doesn't touch your network egress (which on free tier has its own limits).
+`keepwarm` 就利用这一点：默认把**内存**这一维顶住，因为占住内存是代价最低的做法。
 
-CPU and network defeaters are available too, but they are **off by default**.
+## 为什么优先用内存
 
-## How it differs from `NeverIdle`
+- **CPU 代价近乎为零。** 占住的内存只是静静地待着，不空转核心、不发热、不打扰邻居。
+- **95 分位极稳。** 常驻内存量恒定，利用率曲线平坦且高，无论 OCI 什么时候采样，95 分位都在阈值之上。
+- **不浪费带宽。** 完全不碰出网流量（免费额度对流量另有约束）。
 
-The well-known [`layou233/NeverIdle`](https://github.com/layou233/NeverIdle) is dormant and takes a blunt approach. `keepwarm` is deliberately different:
+CPU 与网络两种保活方式也实现了，但**默认关闭**。
+
+## 与 NeverIdle 的区别
+
+知名的 [`layou233/NeverIdle`](https://github.com/layou233/NeverIdle) 已长期不更新，思路比较粗暴。
+`keepwarm` 有意做得不同：
 
 | | NeverIdle | keepwarm |
 |---|---|---|
-| Primary mechanism | Burns CPU | **Holds memory** (cheapest, flat 95th-pct) |
-| Load level | Blindly constant | **Adaptive** — measures your own usage, adds only the deficit |
-| If the box is already busy | Still burns | **Does almost nothing** |
-| Network keep-alive | Full Ookla speedtest (bandwidth-heavy) | Optional, tiny single GET (~10 MB), off by default |
-| Dependencies | — | **Standard library only** (no `go.sum`, fully auditable) |
-| Persistence | Often `nohup`/`screen` from `/tmp` (dies on reboot) | **Proper systemd unit + installer** |
+| 主要机制 | 烧 CPU | **占内存**（最便宜、95 分位平坦） |
+| 负载强度 | 固定不变 | **自适应**：先量自己的用量，只补差额 |
+| 机器本来就忙时 | 照样烧 | **几乎什么都不做** |
+| 网络保活 | 完整 Ookla 测速（吃带宽） | 可选，一次极小的 GET（约 10 MB），默认关 |
+| 依赖 | — | **仅标准库**（无 `go.sum`，可完整审计） |
+| 持久化 | 常见 `nohup`/`screen` 挂在 `/tmp`（重启即失） | **正规 systemd unit + 安装脚本** |
 
-## Install
+## 安装
 
 > 本仓库是 `0xarkstar/keepwarm` 的修复分支，上游**尚未**合并 `v0.1.1-fix`
-> （内存持有超额振荡修复，见 [Fixes](#fixes-over-0xarkstarkeepwarm)）。
+> （内存持有超额振荡修复，见下文[相对上游的修复](#相对上游的修复)）。
 > **下面的安装方式都指向本仓库的发布产物，已含修复。**
 >
 > **发布策略**：每次向 `main` 推送**非文档**改动（源码 / `go.mod` / unit / `install.sh` /
 > workflow），CI 会跑 `vet` + `test`，然后交叉编译 `linux/arm64`、`linux/amd64`、`darwin/arm64`，
-> 生成 `SHA256SUMS`，并以**日期标签**自动发布新版本：`vYYYY.MM.DD`，
+> 生成 `SHA256SUMS`，并以**日期标签**自动发布：`vYYYY.MM.DD`，
 > 同一天多次发布则为 `vYYYY.MM.DD.2`、`.3`…… 纯文档改动不会触发发布。
-> 产物为**静态链接**（`CGO_ENABLED=0`），不依赖目标机 glibc 版本，
+> 产物为**静态链接**（`CGO_ENABLED=0`），不依赖目标机 glibc，
 > 可直接在 Oracle Linux 9（glibc 2.34）与 Ubuntu 24.04（glibc 2.39）上运行。
 
-### Quickest — one-liner (no Go needed)
+### 最快：一键安装（无需 Go）
 
-Downloads the **latest release binary for this repo** (not upstream), verifies its
-SHA-256 against `SHA256SUMS`, installs it to `/usr/local/bin`, and enables the systemd service:
+下载**本仓库**最新 release 二进制（不是上游），校验 `SHA256SUMS`，
+装到 `/usr/local/bin`，并启用 systemd 服务：
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/haohaomin/oracle-always-free-keepalive/main/scripts/install.sh | sudo bash
 ```
 
-Pin a specific date tag with `KEEPWARM_VERSION=v2026.10.30 curl ... | sudo bash`.
-Uninstall with `curl ... | sudo bash -s -- --uninstall`.
+固定某个日期版本：`KEEPWARM_VERSION=v2026.10.30 curl ... | sudo bash`
+卸载：`curl ... | sudo bash -s -- --uninstall`
 
 > 注意：`go install github.com/0xarkstar/keepwarm@latest` 会从**上游**模块路径取代码，
-> **不含本修复**。要用修复版请走上面的一键安装或下面的 Option B。
+> **不含本修复**。要用修复版请走上面的一键安装或下面的方式 B。
 
-### Option A — `go install`
+### 方式 A — `go install`
 
 ```sh
 go install github.com/0xarkstar/keepwarm@latest
 ```
 
-> ⚠️ 这条拉的是**上游**代码，**不含** `v0.1.1-fix`。需要修复版请用一键安装 / Option B。
+> ⚠️ 这条拉的是**上游**代码，**不含** `v0.1.1-fix`。需要修复版请用一键安装 / 方式 B。
 
-The binary lands in `$(go env GOPATH)/bin/keepwarm`. Move it to `/usr/local/bin` and use the systemd path below for persistence.
+二进制落在 `$(go env GOPATH)/bin/keepwarm`，移到 `/usr/local/bin` 后按下面的 systemd 方式做常驻。
 
-### Option B — clone + install script (recommended for a server)
+### 方式 B — 克隆后跑安装脚本（服务器上推荐）
 
-This builds (or uses a prebuilt binary), installs to `/usr/local/bin`, drops in the systemd unit, and enables the service:
+脚本会构建（或使用预编译产物）、装到 `/usr/local/bin`、放入 systemd unit 并启用服务：
 
 ```sh
-git clone https://github.com/0xarkstar/keepwarm.git
-cd keepwarm
+git clone https://github.com/haohaomin/oracle-always-free-keepalive.git
+cd oracle-always-free-keepalive
 sudo ./scripts/install.sh
 ```
 
-Check it:
+检查：
 
 ```sh
 keepwarm -status
@@ -102,15 +125,16 @@ systemctl status keepwarm
 journalctl -u keepwarm -f
 ```
 
-Uninstall:
+卸载：
 
 ```sh
 sudo ./scripts/install.sh --uninstall
 ```
 
-### Option C — release binary (manual)
+### 方式 C — 手动下载 release 二进制
 
-Download the binary for your architecture from **[this repo's Releases](https://github.com/haohaomin/oracle-always-free-keepalive/releases)** page (`keepwarm-linux-arm64` for the OCI Ampere A1 shape, `keepwarm-linux-amd64` for the AMD shape) and verify it against `SHA256SUMS`:
+从 **[本仓库 Releases](https://github.com/haohaomin/oracle-always-free-keepalive/releases)** 下载对应架构
+（A1 用 `keepwarm-linux-arm64`，E2 Micro 用 `keepwarm-linux-amd64`），并核对 `SHA256SUMS`：
 
 ```sh
 curl -fsSLO https://github.com/haohaomin/oracle-always-free-keepalive/releases/latest/download/keepwarm-linux-arm64
@@ -119,26 +143,27 @@ sha256sum -c SHA256SUMS --ignore-missing
 chmod +x keepwarm-linux-arm64 && sudo mv keepwarm-linux-arm64 /usr/local/bin/keepwarm
 ```
 
-(The one-liner above automates exactly this plus the systemd setup.)
+（上面的一键脚本就是把这个流程加上 systemd 配置自动做完。）
 
-### Option D — Docker
+### 方式 D — Docker
 
 ```sh
 docker build -t keepwarm .
 docker run -d --name keepwarm --restart unless-stopped keepwarm -mem 30%
 ```
 
-> A container sees the host `/proc`, so detection works, but held memory counts against the container's cgroup limit. Size `-mem` (and any `--memory` limit) accordingly.
+> 容器里能看到宿主机的 `/proc`，所以检测是准的；但占住的内存会算进容器的 cgroup 限制。
+> 请据此设置 `-mem` 与 `--memory`。
 
-## Quick start
+## 快速开始
 
-The defaults are sensible for the common case (keep memory at 30% of total RAM, check every 30 s):
+默认参数适用于最常见场景（把总内存利用率维持在 30%，每 30 秒检查一次）：
 
 ```sh
 keepwarm
 ```
 
-See what it would do without changing anything:
+只看它会做什么、不改动任何东西：
 
 ```sh
 keepwarm -status
@@ -155,133 +180,135 @@ keepwarm v1.0.0 — status
   Network:          disabled
 ```
 
-In that example the box is at 12.9% memory and the 30% target is 7.2 GiB, so keepwarm would hold the **4.1 GiB deficit** — and nothing more. If your own workload later uses more memory, keepwarm shrinks its buffer automatically.
+上例中机器内存利用率 12.9%、目标 30%（=7.2 GiB），所以 keepwarm 只占住 **4.1 GiB 的差额**，
+多一点都不占。之后你自己的业务用得更多，它会自动缩回去。
 
-## Flags
+## 参数
 
-All flags can also be set via `KEEPWARM_*` environment variables (uppercase, dashes → underscores). **Flags take precedence over env vars, which take precedence over defaults.**
+所有参数也可用 `KEEPWARM_*` 环境变量设置（大写，短横线换下划线）。
+**优先级：命令行参数 > 环境变量 > 默认值。**
 
-| Flag | Env var | Default | Description |
+| 参数 | 环境变量 | 默认值 | 说明 |
 |---|---|---|---|
-| `-mem` | `KEEPWARM_MEM` | `30%` | Target **total** memory utilization to maintain. Accepts a percent (`30%`) or an absolute size (`512MiB`, `2GiB`). Adaptive: holds only the deficit needed. **Primary mechanism, on by default.** |
-| `-cpu` | `KEEPWARM_CPU` | `0.0` (off) | Target CPU utilization **floor** as a fraction of all cores `[0.0–1.0]`. Adaptive: if recent utilization is below the floor, does SHA-256 work for a computed slice of the interval; if organic load already meets it, does nothing. |
-| `-net` | `KEEPWARM_NET` | `""` (off) | If set to a duration (e.g. `6h`), performs one lightweight outbound HTTPS GET that often to keep the network dimension non-idle. |
-| `-net-url` | `KEEPWARM_NET_URL` | `https://speed.cloudflare.com/__down?bytes=10000000` | Endpoint for the network ping (~10 MB). Point it anywhere you like; the body is read and discarded. |
-| `-net-timeout` | `KEEPWARM_NET_TIMEOUT` | `60s` | Per-request timeout for the network ping. |
-| `-interval` | `KEEPWARM_INTERVAL` | `30s` | Control-loop tick. |
-| `-priority` | `KEEPWARM_PRIORITY` | `19` | Process niceness on Linux (`-20`..`19`, `19` = lowest). Ensures real workloads always preempt keepwarm. No-op on non-Linux. |
-| `-once` / `-status` | — | — | Print detected RAM, current CPU%/mem%, and what keepwarm **would** do, then exit. |
-| `-verbose` | `KEEPWARM_VERBOSE` | `false` | Structured (`log/slog`) debug lines on every action. |
-| `-version` | — | — | Print version and exit. |
+| `-mem` | `KEEPWARM_MEM` | `30%` | 要维持的**总**内存利用率目标。可写百分比（`30%`）或绝对大小（`512MiB`、`2GiB`）。自适应：只占差额。**主机制，默认开启。** |
+| `-cpu` | `KEEPWARM_CPU` | `0.0`（关） | CPU 利用率**下限**，取全部核心的比例 `[0.0–1.0]`。自适应：近期利用率低于下限时，按算出的时间片做 SHA-256 运算；有机负载已达下限则什么都不做。 |
+| `-net` | `KEEPWARM_NET` | `""`（关） | 设为时长（如 `6h`）后，按该频率发一次轻量 HTTPS GET，让网络维度保持非闲置。 |
+| `-net-url` | `KEEPWARM_NET_URL` | `https://speed.cloudflare.com/__down?bytes=10000000` | 网络探测的目标地址（约 10 MB），可改成任意地址；响应体读完即丢。 |
+| `-net-timeout` | `KEEPWARM_NET_TIMEOUT` | `60s` | 单次网络探测的超时。 |
+| `-interval` | `KEEPWARM_INTERVAL` | `30s` | 控制循环周期。 |
+| `-priority` | `KEEPWARM_PRIORITY` | `19` | Linux 下的进程 nice 值（`-20`..`19`，`19` 最低）。保证真实业务永远抢占它。非 Linux 无效果。 |
+| `-once` / `-status` | — | — | 打印检测到的内存、当前 CPU/内存占比、以及它**将会**做什么，然后退出。 |
+| `-verbose` | `KEEPWARM_VERBOSE` | `false` | 每次动作输出结构化（`log/slog`）调试日志。 |
+| `-version` | — | — | 打印版本后退出。 |
 
-### Examples
+### 示例
 
 ```sh
-# Hold an absolute amount instead of a percentage:
+# 用绝对大小而不是百分比：
 keepwarm -mem 2GiB
 
-# Also keep CPU above a 10% floor (only burns when the box is otherwise idle):
+# 同时把 CPU 托到 10% 下限（只在机器空闲时才烧）：
 keepwarm -mem 30% -cpu 0.10
 
-# Memory off-loaded to the network dimension only (hourly tiny GET):
+# 只用网络维度保活（每小时一次极小 GET）：
 keepwarm -mem 0% -net 1h
 
-# Verbose, fast loop for debugging:
+# 调试用的详细日志 + 快速循环：
 keepwarm -verbose -interval 5s -status
 ```
 
-## How the adaptive math works
+## 自适应原理
 
-**Memory.** Each tick it reads total and used memory. Your *organic* usage is `used − whatKeepwarmHolds`. To reach the target it holds `target − organic`, clamped to `[0, total]`. Held pages are touched (one page size apart) so the kernel keeps them resident and counts them as used. If your workload grows, keepwarm shrinks; if it shrinks, keepwarm grows back.
+**内存。** 每个周期读一次总内存与已用内存。你的**有机用量**是 `used − 它当前占住的量`。
+为了达到目标，它需要占住 `target − organic`，并夹到 `[0, total]` 区间内。
+占住的页会按页大小写一遍，让内核保持其常驻并计入已用。
+业务涨了它就让，业务落了它再补回去。
 
-Two details keep the loop honest (see [Fixes](#fixes-over-0xarkstarkeepwarm) below):
+有两个细节保证这个回路不跑偏（详见下文[相对上游的修复](#相对上游的修复)）：
 
-- **Resize dead-band.** Changes smaller than ~1.6 % of what is currently held (minimum 8 MiB) are ignored. Reacting to every few-MiB wobble in `MemAvailable` caused pointless reallocation churn.
-- **Immediate page return.** When the holder resizes, the previous buffer is handed back to the OS straight away (`debug.FreeOSMemory`) instead of waiting for the Go runtime to scavenge it. While those stale pages stayed resident, the next `/proc/meminfo` read counted *old + new* at once, so `organic` looked far larger than it was, the deficit collapsed, and the holder re-grew — a feedback loop that drove observed utilization well above the configured target.
+- **重分配死区。** 小于当前持有量约 1.6%（且不低于 8 MiB）的变化直接忽略。
+  原先对 `MemAvailable` 上几 MiB 的抖动也做出反应，导致毫无意义的重分配抖动。
+- **立即归还页。** 重分配时，旧缓冲区**立刻**交还操作系统（`debug.FreeOSMemory`），
+  而不是等 Go 运行时慢慢回收。否则那些「已释放但仍驻留」的页会被下一次 `/proc/meminfo`
+  读成 **旧 + 新** 两份，于是 `organic` 被高估、缺口算成 0、随后又重新长回去——这个正反馈
+  会把实测利用率推到远超配置目标。
 
-**CPU.** Each tick it samples `/proc/stat` twice (across the interval) to get current utilization `u`. To raise the *average* over the interval from `u` to the floor `f`, it pegs the CPU for a fraction of the interval:
+**CPU。** 每个周期对 `/proc/stat` 采样两次（跨一个周期）得到当前利用率 `u`。
+要把该周期的**平均**利用率从 `u` 提到下限 `f`，它需要打满 CPU 的时间占比为：
 
 ```
 burnFraction = (f − u) / (1 − u)
 ```
 
-If `u ≥ f` it does nothing. The work is SHA-256 churn across one goroutine per core, at niceness 19 so it never starves real work.
+若 `u ≥ f` 则完全不动。计算任务是每核心一个 goroutine 跑 SHA-256，nice 19，绝不饿死真实业务。
 
-## Platform support
+## 平台支持
 
-- **Linux** (the OCI target) — full support: `/proc/meminfo`, `/proc/stat`, `Setpriority`.
-- **darwin/arm64** (local dev) — memory detection via `sysctl`/`vm_stat`; CPU monitor reports *unavailable* (the memory mechanism is unaffected); priority is a no-op.
-- Builds and runs on both; non-Linux degrades gracefully and says so.
+- **Linux**（OCI 目标平台）— 完整支持：`/proc/meminfo`、`/proc/stat`、`Setpriority`。
+- **darwin/arm64**（本地开发）— 内存检测走 `sysctl`/`vm_stat`；CPU 监控报告**不可用**
+  （不影响内存机制）；nice 为空操作。
+- 两个平台都能构建运行；非 Linux 会优雅降级并明确说明。
 
-## Build from source
+## 从源码构建
 
 ```sh
-make build      # host binary -> ./keepwarm
+make build      # 本机二进制 -> ./keepwarm
 make test       # go test ./...
 make vet        # go vet ./...
-make cross      # static linux/amd64 + linux/arm64 -> ./dist
+make cross      # 静态 linux/amd64 + linux/arm64 -> ./dist
 make clean
 ```
 
-## Safety & ethics
+## 安全与合理使用
 
-`keepwarm` is intended **only** for keeping **your own, legitimately provisioned** OCI Always Free instance alive. It is designed to be **low-waste by construction** — it adds the minimum load needed to clear the idle threshold and nothing more, runs at the lowest scheduling priority, and never runs bandwidth-heavy speedtests. Please respect Oracle's terms of service and resource limits; don't use it to circumvent quotas or to keep resources you aren't entitled to.
+`keepwarm` **仅**用于让你**自己的、合法开通**的 OCI Always Free 实例不被回收。
+它在设计上就是**低浪费**的：只补到刚好越过闲置阈值、以最低调度优先级运行、
+从不跑吃带宽的测速。请遵守 Oracle 的服务条款与资源额度，
+不要用它绕过配额，或保留你并不应得的资源。
 
-## Fixes over `0xarkstar/keepwarm`
+## 相对上游的修复
 
-This tree is based on `0xarkstar/keepwarm` at commit
-`24cde41bbf7522b77b4308829764e710f1d5ddc9` and adds the following.
+本仓库基于 `0xarkstar/keepwarm` 的 commit `24cde41bbf7522b77b4308829764e710f1d5ddc9`，
+并包含以下改动。
 
-### `v0.1.1-fix` — memory holder overshot its target (over-hold oscillation)
+### `v0.1.1-fix` — 内存持有量超出目标（超调振荡）
 
-**Symptom.** With `-mem 30%` on a 12 GB (Ampere A1) instance, observed total
-utilization did not settle at 30 %. It cycled between roughly **15 % and 47 %**,
-and `RSS` of the holder repeatedly doubled (≈1.5 GiB → ≈3.1 GiB) before
-collapsing. The instance was therefore holding ~3.1 GiB when only ~1.8 GiB was
-needed — wasteful, and the configured target was never actually maintained.
+**现象。** 在 12 GB 的 Ampere A1 实例上用 `-mem 30%`，实测总利用率**并不稳定在 30%**，
+而是在大约 **15% ↔ 47%** 之间来回跳；持有者的 `RSS` 反复翻倍（约 1.5 GiB → 约 3.1 GiB）
+再塌回去。也就是说：只需要占 1.8 GiB 时它占了 3.1 GiB——既浪费，配置的目标也从没真正兑现过。
 
-**Root cause.** `MemoryHolder.Adjust` allocated a brand-new buffer on *every*
-call, however small the delta, and the previous array stayed resident until the
-Go runtime happened to collect and scavenge it. Two consequences compounded:
+**根因。** `MemoryHolder.Adjust` 对**每一次**调用都分配一块全新的缓冲区（哪怕只差几 MiB），
+而旧数组要等 Go 运行时碰巧回收并归还才会消失。两个后果叠加：
 
-1. A one-off few-MiB wobble in `MemAvailable` was enough to trigger a full
-   re-allocation of a multi-hundred-MiB buffer.
-2. During the window where the old array was still resident, the next
-   `/proc/meminfo` reading counted **old + new**. `TargetHeld` then computed
-   `organic = used − held` from an inflated `used`, concluded the box was far
-   busier than it really was, collapsed the deficit, and the holder re-grew on a
-   later tick — repeating indefinitely.
+1. `MemAvailable` 上一次性几 MiB 的抖动，就足以触发一次几百 MiB 的整块重分配。
+2. 在旧数组仍驻留的那个窗口里，下一次 `/proc/meminfo` 读到的是 **旧 + 新**。
+   `TargetHeld` 于是用被高估的 `used` 去算 `organic = used − held`，得出「机器比实际忙得多」，
+   缺口塌成 0，持有者随后又长回去——如此反复，没有尽头。
 
-**Fix** (`internal/waste/memory.go`):
+**修复**（`internal/waste/memory.go`）：
 
-- Added a **resize dead-band**: deltas below `max(8 MiB, held/64)` are ignored,
-  so measurement noise no longer causes reallocation churn.
-- **Shrink** now drops the old buffer, returns its pages to the OS, and only then
-  allocates the replacement — so a shrink under memory pressure never
-  transiently needs old + new.
-- **Grow** now returns the replaced array's pages to the OS immediately after the
-  swap, closing the residual half of the loop.
-- Growth uses geometric capacity so incremental growth stops reallocating.
-- `pageSize` is taken from `os.Getpagesize()` instead of a hard-coded 4096.
-- `clampToInt` prevents `int` overflow when clamping huge targets on 32-bit.
+- 新增**重分配死区**：小于 `max(8 MiB, held/64)` 的变化忽略，测量噪声不再引起重分配抖动。
+- **收缩**时先丢弃旧缓冲区、把页还给操作系统，然后再分配新的——内存紧张时收缩不会瞬时需要「旧 + 新」。
+- **增长**时在替换后立刻归还被换下的数组的页，堵住这个回路的另一半。
+- 增长采用几何扩容，避免逐周期重分配。
+- `pageSize` 改用 `os.Getpagesize()`，不再硬编码 4096。
+- `clampToInt` 防止 32 位平台上夹取大目标时 `int` 溢出。
 
-**Verification** (Oracle Cloud `VM.Standard.A1.Flex`, 2 OCPU / 12 GB,
-`-mem 30% -cpu 0 -interval 30s`, 400 s of sampling at 20 s intervals):
+**验证**（Oracle Cloud `VM.Standard.A1.Flex`，2 OCPU / 12 GB，
+`-mem 30% -cpu 0 -interval 30s`，400 秒、每 20 秒采样一次）：
 
-| | before | after |
+| | 修复前 | 修复后 |
 |---|---|---|
-| observed total memory utilization | 15.5 % ↔ 46.6 % | **29.9 % – 30.3 %** |
-| holder RSS | 17 MiB ↔ 3191 MiB (doubling) | **1551 MiB, constant** |
-| OOM events / restarts | 0 / 0 | 0 / 0 |
+| 实测总内存利用率 | 15.5% ↔ 46.6% | **29.9% – 30.3%** |
+| 持有者 RSS | 17 MiB ↔ 3191 MiB（翻倍） | **1551 MiB，恒定** |
+| OOM 次数 / 重启 | 0 / 0 | 0 / 0 |
 
-A unit-test regression guard (`TestMemoryHolderDeadbandImmuneToNoise`) asserts
-that sub-dead-band deltas never reallocate the backing array; against the
-unpatched implementation the equivalent assertion fails (a 67 109 888-byte
-buffer was reallocated for a 1 KiB delta).
+单测回归护栏 `TestMemoryHolderDeadbandImmuneToNoise` 断言：死区内的变化绝不重分配底层数组；
+在未打补丁的实现上该断言会失败（实测为 1 KiB 的变化重分配了 67,109,888 字节的缓冲区）。
 
-CPU and network modes are unchanged by this fix.
+本修复不影响 CPU 与网络两种模式。
 
-## 相关关键词 / Search terms
+## 相关关键词
 
 如果你是从搜索引擎来到这里的，以下说法指的都是同一件事：
 
@@ -291,6 +318,12 @@ CPU and network modes are unchanged by this fix.
 `VM.Standard.A1.Flex` · `VM.Standard.E2.1.Micro` · `OCI Ampere A1 保活` · `甲骨文 ARM 保活` ·
 `systemd keepalive` · `oracle cloud 闲置回收`
 
+## Star 趋势
+
+如果这个项目帮你保住了机器，点个 Star 就是最好的支持 ⭐
+
+[![Star History Chart](https://api.star-history.com/svg?repos=haohaomin/oracle-always-free-keepalive&type=Date)](https://star-history.com/#haohaomin/oracle-always-free-keepalive&Date)
+
 ## License
 
-[MIT](LICENSE) © 2026 0xarkstar · modifications in this tree © 2026 haohaomin
+[MIT](LICENSE) © 2026 0xarkstar · 本分支改动 © 2026 haohaomin
