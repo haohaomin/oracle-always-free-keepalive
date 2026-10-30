@@ -1,9 +1,15 @@
-# keepwarm
+# keepwarm — Oracle Cloud (OCI) Always Free 实例保活 / 防闲置回收
 
-[![CI](https://github.com/0xarkstar/keepwarm/actions/workflows/ci.yml/badge.svg)](https://github.com/0xarkstar/keepwarm/actions/workflows/ci.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/0xarkstar/keepwarm)](https://goreportcard.com/report/github.com/0xarkstar/keepwarm)
+[![CI](https://github.com/haohaomin/keepwarm/actions/workflows/ci.yml/badge.svg)](https://github.com/haohaomin/keepwarm/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Go 1.23+](https://img.shields.io/badge/Go-1.23+-00ADD8.svg)](https://go.dev/)
+[![Platform](https://img.shields.io/badge/platform-linux%2Farm64%20%7C%20linux%2Famd64-blue.svg)](#platform-support)
+
+**Adaptive keepalive for Oracle Cloud Always Free instances** — stops OCI from
+reclaiming your free-tier VM for idleness. 甲骨文云（Oracle Cloud / OCI）**永久免费**
+服务器保活工具：按实例自身用量**自适应**补足内存或 CPU，防止被判定为闲置而回收。
+同时支持 **VM.Standard.A1.Flex（ARM64）** 与 **VM.Standard.E2.1.Micro（AMD64）**，
+systemd 常驻、纯标准库、无外部依赖、可交叉编译。
 
 A tiny, **dependency-free** daemon that stops your Oracle Cloud (OCI) **Always Free** compute instance from being reclaimed for being idle — without burning CPU or bandwidth you don't need. It is **memory-first** (the cheapest, most reliable defeater) and **adaptive** (it measures your instance's own utilization and adds only the minimum extra load required).
 
@@ -255,6 +261,16 @@ buffer was reallocated for a 1 KiB delta).
 
 CPU and network modes are unchanged by this fix.
 
+## 相关关键词 / Search terms
+
+如果你是从搜索引擎来到这里的，以下说法指的都是同一件事：
+
+`甲骨文云 保活` · `甲骨文 免费服务器 防回收` · `Oracle Cloud 保活` · `OCI 保活脚本` ·
+`Oracle Always Free keepalive` · `OCI always free idle reclamation` · `oracle free tier keep alive` ·
+`oracle cloud instance reclaimed idle` · `neveridle 替代` · `neveridle alternative` ·
+`VM.Standard.A1.Flex` · `VM.Standard.E2.1.Micro` · `OCI Ampere A1 保活` · `甲骨文 ARM 保活` ·
+`systemd keepalive` · `oracle cloud 闲置回收`
+
 ## License
 
-[MIT](LICENSE) © 2026 0xarkstar
+[MIT](LICENSE) © 2026 0xarkstar · modifications in this tree © 2026 haohaomin
