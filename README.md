@@ -1,6 +1,6 @@
 # keepwarm — Oracle Cloud (OCI) Always Free 实例保活 / 防闲置回收
 
-[![CI](https://github.com/haohaomin/keepwarm/actions/workflows/ci.yml/badge.svg)](https://github.com/haohaomin/keepwarm/actions/workflows/ci.yml)
+[![CI](https://github.com/haohaomin/oracle-always-free-keepalive/actions/workflows/ci.yml/badge.svg)](https://github.com/haohaomin/oracle-always-free-keepalive/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Go 1.23+](https://img.shields.io/badge/Go-1.23+-00ADD8.svg)](https://go.dev/)
 [![Platform](https://img.shields.io/badge/platform-linux%2Farm64%20%7C%20linux%2Famd64-blue.svg)](#platform-support)
