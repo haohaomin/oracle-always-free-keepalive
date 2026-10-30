@@ -67,6 +67,11 @@ jobs:
 
       - name: Cross-compile binaries
         env:
+          # Fully static: a cgo-enabled build links against the runner's glibc and
+          # then requires that glibc (or newer) on the target. Oracle Linux 9 ships
+          # glibc 2.34, so a runner bump could silently produce binaries that will
+          # not start there. CGO_ENABLED=0 keeps the release portable.
+          CGO_ENABLED: "0"
           # Bound via env to avoid any shell injection through the ref name.
           VERSION: ${{ steps.tag.outputs.tag }}
         run: |

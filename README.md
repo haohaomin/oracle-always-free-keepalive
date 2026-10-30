@@ -56,6 +56,8 @@ The well-known [`layou233/NeverIdle`](https://github.com/layou233/NeverIdle) is 
 > workflow），CI 会跑 `vet` + `test`，然后交叉编译 `linux/arm64`、`linux/amd64`、`darwin/arm64`，
 > 生成 `SHA256SUMS`，并以**日期标签**自动发布新版本：`vYYYY.MM.DD`，
 > 同一天多次发布则为 `vYYYY.MM.DD.2`、`.3`…… 纯文档改动不会触发发布。
+> 产物为**静态链接**（`CGO_ENABLED=0`），不依赖目标机 glibc 版本，
+> 可直接在 Oracle Linux 9（glibc 2.34）与 Ubuntu 24.04（glibc 2.39）上运行。
 
 ### Quickest — one-liner (no Go needed)
 
