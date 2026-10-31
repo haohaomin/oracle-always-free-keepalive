@@ -292,7 +292,9 @@ circumvent quotas or to keep resources you aren't entitled to.
 Maintained on top of the MIT-licensed `keepwarm` by `0xarkstar`, based on commit
 `24cde41bbf7522b77b4308829764e710f1d5ddc9` and adds the following.
 
-### `v0.1.1-fix` — memory holder overshot its target (over-hold oscillation)
+### Memory holder overshot its target (over-hold oscillation)
+
+> Included in **every** release from `v2026.10.30` onward.
 
 **Symptom.** With `-mem 30%` on a 12 GB (Ampere A1) instance, observed total
 utilization did not settle at 30 %. It cycled between roughly **15 % and 47 %**,
