@@ -28,7 +28,7 @@ statically cross-compiled.
 - [Platform support](#platform-support)
 - [Build from source](#build-from-source)
 - [Safety & ethics](#safety--ethics)
-- [Fixes over upstream](#fixes-over-upstream)
+- [Changelog](#changelog)
 - [Search terms](#search-terms)
 - [Star history](#star-history)
 
@@ -73,9 +73,10 @@ dormant and takes a blunt approach. `keepwarm` is deliberately different:
 
 ## Install
 
-> This repo is a fix branch of `0xarkstar/keepwarm`; upstream has **not** merged
-> `v0.1.1-fix` yet (see [Fixes over upstream](#fixes-over-upstream)).
-> **Every install path below points at this repo's own release artifacts, which include the fix.**
+> **About this project**: the maintained branch of `keepwarm`, built on the MIT-licensed
+> original by `0xarkstar`, with the memory over-hold oscillation fixed
+> (see [Changelog](#changelog)).
+> **Every install path below points at this repo's own release artifacts.**
 >
 > **Release policy.** Every push to `main` that touches **non-documentation** files
 > (sources, `go.mod`, the unit file, `install.sh`, workflows) runs `vet` + `test`,
@@ -88,7 +89,7 @@ dormant and takes a blunt approach. `keepwarm` is deliberately different:
 
 ### Quickest — one-liner (no Go needed)
 
-Downloads the **latest release binary for this repo** (not upstream), verifies its
+Downloads the **latest release binary for this repo**, verifies its
 SHA-256 against `SHA256SUMS`, installs it to `/usr/local/bin`, and enables the
 systemd service:
 
@@ -99,20 +100,19 @@ curl -fsSL https://raw.githubusercontent.com/haohaomin/oracle-always-free-keepal
 Pin a specific date tag with `KEEPWARM_VERSION=v2026.10.30 curl ... | sudo bash`.
 Uninstall with `curl ... | sudo bash -s -- --uninstall`.
 
-> Note: `go install github.com/0xarkstar/keepwarm@latest` resolves through the
-> **upstream** module path and therefore does **not** include this fix.
-
 ### Option A — `go install`
 
 ```sh
-go install github.com/0xarkstar/keepwarm@latest
+go install github.com/haohaomin/oracle-always-free-keepalive@latest
 ```
 
-> ⚠️ This pulls **upstream** code, **without** `v0.1.1-fix`. Use the one-liner or
-> Option B if you want the fix.
+The binary is named after the module; install it under the expected name:
 
-The binary lands in `$(go env GOPATH)/bin/keepwarm`. Move it to `/usr/local/bin`
-and use the systemd path below for persistence.
+```sh
+sudo install -m 0755 "$(go env GOPATH)/bin/oracle-always-free-keepalive" /usr/local/bin/keepwarm
+```
+
+Then use the systemd path below for persistence.
 
 ### Option B — clone + install script (recommended for a server)
 
@@ -239,7 +239,7 @@ clamped to `[0, total]`. Held pages are touched (one page size apart) so the
 kernel keeps them resident and counts them as used. If your workload grows,
 keepwarm shrinks; if it shrinks, keepwarm grows back.
 
-Two details keep the loop honest (see [Fixes over upstream](#fixes-over-upstream)):
+Two details keep the loop honest (see [Changelog](#changelog)):
 
 - **Resize dead-band.** Changes smaller than ~1.6 % of what is currently held
   (minimum 8 MiB) are ignored. Reacting to every few-MiB wobble in `MemAvailable`
@@ -287,9 +287,9 @@ runs at the lowest scheduling priority, and never runs bandwidth-heavy speedtest
 Please respect Oracle's terms of service and resource limits; don't use it to
 circumvent quotas or to keep resources you aren't entitled to.
 
-## Fixes over upstream
+## Changelog
 
-This tree is based on `0xarkstar/keepwarm` at commit
+Maintained on top of the MIT-licensed `keepwarm` by `0xarkstar`, based on commit
 `24cde41bbf7522b77b4308829764e710f1d5ddc9` and adds the following.
 
 ### `v0.1.1-fix` — memory holder overshot its target (over-hold oscillation)
@@ -356,4 +356,4 @@ If this project saved your instance, a ⭐ is the best way to say thanks.
 
 ## License
 
-[MIT](LICENSE) © 2026 0xarkstar · modifications in this tree © 2026 haohaomin
+[MIT](LICENSE) © 2026 haohaomin · original project © 2026 0xarkstar

@@ -1,6 +1,6 @@
 [Unit]
 Description=keepwarm - keep an OCI Always Free instance from being reclaimed for idleness
-Documentation=https://github.com/0xarkstar/keepwarm
+Documentation=https://github.com/haohaomin/oracle-always-free-keepalive
 After=network-online.target
 Wants=network-online.target
 

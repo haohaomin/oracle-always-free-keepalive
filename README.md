@@ -30,7 +30,7 @@ systemd 常驻、纯 Go 标准库、零外部依赖、可静态交叉编译。
 - [平台支持](#平台支持)
 - [从源码构建](#从源码构建)
 - [安全与合理使用](#安全与合理使用)
-- [相对上游的修复](#相对上游的修复)
+- [更新记录](#更新记录)
 - [相关关键词](#相关关键词)
 - [Star 趋势](#star-趋势)
 
@@ -71,9 +71,9 @@ CPU 与网络两种保活方式也实现了，但**默认关闭**。
 
 ## 安装
 
-> 本仓库是 `0xarkstar/keepwarm` 的修复分支，上游**尚未**合并 `v0.1.1-fix`
-> （内存持有超额振荡修复，见下文[相对上游的修复](#相对上游的修复)）。
-> **下面的安装方式都指向本仓库的发布产物，已含修复。**
+> **关于本项目**：`keepwarm` 的维护分支，基于 MIT 许可的原始项目（作者 `0xarkstar`）
+> 继续开发，并已修复内存持有超额振荡问题（详见[更新记录](#更新记录)）。
+> **下面的安装方式都指向本仓库的发布产物。**
 >
 > **发布策略**：每次向 `main` 推送**非文档**改动（源码 / `go.mod` / unit / `install.sh` /
 > workflow），CI 会跑 `vet` + `test`，然后交叉编译 `linux/arm64`、`linux/amd64`、`darwin/arm64`，
@@ -84,7 +84,7 @@ CPU 与网络两种保活方式也实现了，但**默认关闭**。
 
 ### 最快：一键安装（无需 Go）
 
-下载**本仓库**最新 release 二进制（不是上游），校验 `SHA256SUMS`，
+下载**本仓库**最新 release 二进制，校验 `SHA256SUMS`，
 装到 `/usr/local/bin`，并启用 systemd 服务：
 
 ```sh
@@ -94,18 +94,19 @@ curl -fsSL https://raw.githubusercontent.com/haohaomin/oracle-always-free-keepal
 固定某个日期版本：`KEEPWARM_VERSION=v2026.10.30 curl ... | sudo bash`
 卸载：`curl ... | sudo bash -s -- --uninstall`
 
-> 注意：`go install github.com/0xarkstar/keepwarm@latest` 会从**上游**模块路径取代码，
-> **不含本修复**。要用修复版请走上面的一键安装或下面的方式 B。
-
 ### 方式 A — `go install`
 
 ```sh
-go install github.com/0xarkstar/keepwarm@latest
+go install github.com/haohaomin/oracle-always-free-keepalive@latest
 ```
 
-> ⚠️ 这条拉的是**上游**代码，**不含** `v0.1.1-fix`。需要修复版请用一键安装 / 方式 B。
+二进制名跟随模块名，装好后重命名为 `keepwarm`：
 
-二进制落在 `$(go env GOPATH)/bin/keepwarm`，移到 `/usr/local/bin` 后按下面的 systemd 方式做常驻。
+```sh
+sudo install -m 0755 "$(go env GOPATH)/bin/oracle-always-free-keepalive" /usr/local/bin/keepwarm
+```
+
+再按下面的 systemd 方式配置常驻。
 
 ### 方式 B — 克隆后跑安装脚本（服务器上推荐）
 
@@ -224,7 +225,7 @@ keepwarm -verbose -interval 5s -status
 占住的页会按页大小写一遍，让内核保持其常驻并计入已用。
 业务涨了它就让，业务落了它再补回去。
 
-有两个细节保证这个回路不跑偏（详见下文[相对上游的修复](#相对上游的修复)）：
+有两个细节保证这个回路不跑偏（详见[更新记录](#更新记录)）：
 
 - **重分配死区。** 小于当前持有量约 1.6%（且不低于 8 MiB）的变化直接忽略。
   原先对 `MemAvailable` 上几 MiB 的抖动也做出反应，导致毫无意义的重分配抖动。
@@ -266,10 +267,10 @@ make clean
 从不跑吃带宽的测速。请遵守 Oracle 的服务条款与资源额度，
 不要用它绕过配额，或保留你并不应得的资源。
 
-## 相对上游的修复
+## 更新记录
 
-本仓库基于 `0xarkstar/keepwarm` 的 commit `24cde41bbf7522b77b4308829764e710f1d5ddc9`，
-并包含以下改动。
+本仓库在 MIT 许可的 `keepwarm`（原始作者 `0xarkstar`）之上持续维护，
+基线为 commit `24cde41bbf7522b77b4308829764e710f1d5ddc9`，当前包含以下改动。
 
 ### `v0.1.1-fix` — 内存持有量超出目标（超调振荡）
 
@@ -326,4 +327,4 @@ make clean
 
 ## License
 
-[MIT](LICENSE) © 2026 0xarkstar · 本分支改动 © 2026 haohaomin
+[MIT](LICENSE) © 2026 haohaomin · 原始项目 © 2026 0xarkstar

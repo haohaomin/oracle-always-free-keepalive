@@ -1,3 +1,3 @@
-module github.com/0xarkstar/keepwarm
+module github.com/haohaomin/oracle-always-free-keepalive
 
 go 1.23

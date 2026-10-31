@@ -52,7 +52,7 @@ func (n *NetPinger) Ping(ctx context.Context) (int64, error) {
 		n.log.Warn("network ping: build request failed", "url", n.url, "err", err)
 		return 0, fmt.Errorf("build request: %w", err)
 	}
-	req.Header.Set("User-Agent", "keepwarm/1 (+https://github.com/0xarkstar/keepwarm)")
+	req.Header.Set("User-Agent", "keepwarm/1 (+https://github.com/haohaomin/oracle-always-free-keepalive)")
 
 	resp, err := n.client.Do(req)
 	if err != nil {

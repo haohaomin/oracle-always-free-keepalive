@@ -19,8 +19,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/0xarkstar/keepwarm/internal/sysstat"
-	"github.com/0xarkstar/keepwarm/internal/waste"
+	"github.com/haohaomin/oracle-always-free-keepalive/internal/sysstat"
+	"github.com/haohaomin/oracle-always-free-keepalive/internal/waste"
 )
 
 // Version is overridable at build time via -ldflags "-X main.Version=...".

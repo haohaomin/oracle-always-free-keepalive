@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/0xarkstar/keepwarm/internal/waste"
+	"github.com/haohaomin/oracle-always-free-keepalive/internal/waste"
 )
 
 // Config holds the resolved runtime settings for the daemon.

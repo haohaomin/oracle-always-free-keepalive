@@ -14,7 +14,7 @@
 #   # from a clone:
 #   sudo ./scripts/install.sh
 #   # one-liner (downloads the latest release binary, no Go needed):
-#   curl -fsSL https://raw.githubusercontent.com/0xarkstar/keepwarm/main/scripts/install.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/haohaomin/oracle-always-free-keepalive/main/scripts/install.sh | sudo bash
 #   # uninstall:
 #   sudo ./scripts/install.sh --uninstall
 #
