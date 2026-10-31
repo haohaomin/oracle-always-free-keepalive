@@ -73,9 +73,9 @@ dormant and takes a blunt approach. `keepwarm` is deliberately different:
 
 ## Install
 
-> **About this project**: the maintained branch of `keepwarm`, built on the MIT-licensed
-> original by `0xarkstar`, with the memory over-hold oscillation fixed
-> (see [Changelog](#changelog)).
+> **About this project**: the maintained branch of `keepwarm`, which keeps fixing the
+> known upstream issues (the memory over-hold oscillation fix is in the
+> [Changelog](#changelog)).
 > **Every install path below points at this repo's own release artifacts.**
 >
 > **Release policy.** Every push to `main` that touches **non-documentation** files
@@ -356,4 +356,4 @@ If this project saved your instance, a ⭐ is the best way to say thanks.
 
 ## License
 
-[MIT](LICENSE) © 2026 haohaomin · original project © 2026 0xarkstar
+[MIT](LICENSE) © 2026 haohaomin
