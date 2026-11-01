@@ -80,10 +80,10 @@ func TestParseConfigFlags(t *testing.T) {
 
 func TestParseConfigEnv(t *testing.T) {
 	env := fakeEnv(map[string]string{
-		"KEEPWARM_MEM":      "1GiB",
-		"KEEPWARM_CPU":      "0.25",
-		"KEEPWARM_INTERVAL": "5s",
-		"KEEPWARM_VERBOSE":  "true",
+		"KEEPALIVE_MEM":      "1GiB",
+		"KEEPALIVE_CPU":      "0.25",
+		"KEEPALIVE_INTERVAL": "5s",
+		"KEEPALIVE_VERBOSE":  "true",
 	})
 	cfg, _, err := parseConfig(nil, env)
 	if err != nil {
@@ -104,7 +104,7 @@ func TestParseConfigEnv(t *testing.T) {
 }
 
 func TestParseConfigFlagOverridesEnv(t *testing.T) {
-	env := fakeEnv(map[string]string{"KEEPWARM_MEM": "1GiB"})
+	env := fakeEnv(map[string]string{"KEEPALIVE_MEM": "1GiB"})
 	cfg, _, err := parseConfig([]string{"-mem", "20%"}, env)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

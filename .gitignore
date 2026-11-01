@@ -1,7 +1,7 @@
 # Build output
 /dist/
-/keepwarm
-/keepwarm-*
+/keepalive
+/keepalive-*
 
 # Go test / coverage artifacts
 *.test

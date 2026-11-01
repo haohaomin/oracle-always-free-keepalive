@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# keepwarm installer / uninstaller.
+# keepalive installer / uninstaller.
 #
-# Installs the keepwarm binary to /usr/local/bin and a systemd unit to
+# Installs the keepalive binary to /usr/local/bin and a systemd unit to
 # /etc/systemd/system, then enables and starts the service.
 #
 # Binary source resolution (first match wins):
@@ -19,16 +19,16 @@
 #   sudo ./scripts/install.sh --uninstall
 #
 # Env:
-#   KEEPWARM_VERSION=v2026.10.30   pin a release tag (default: latest)
+#   KEEPALIVE_VERSION=v2026.10.30   pin a release tag (default: latest)
 #
 set -euo pipefail
 
 REPO="haohaomin/oracle-always-free-keepalive"
-BIN_NAME="keepwarm"
+BIN_NAME="keepalive"
 BIN_DEST="/usr/local/bin/${BIN_NAME}"
-UNIT_NAME="keepwarm.service"
+UNIT_NAME="keepalive.service"
 UNIT_DEST="/etc/systemd/system/${UNIT_NAME}"
-VERSION="${KEEPWARM_VERSION:-latest}"
+VERSION="${KEEPALIVE_VERSION:-latest}"
 RAW_BASE="https://raw.githubusercontent.com/${REPO}/main"
 
 # Resolve the repo root from this script's location, tolerating `curl | bash`
@@ -106,7 +106,7 @@ verify_checksum() {
   log "checksum verified (${asset})"
 }
 
-# Echo a path to an executable keepwarm binary for ${arch}, acquiring it from a
+# Echo a path to an executable keepalive binary for ${arch}, acquiring it from a
 # local artifact, a source build, or the GitHub release — in that order.
 locate_binary() {
   local arch="$1"
@@ -159,7 +159,7 @@ locate_unit() {
   echo "${tmp}"
 }
 
-install_keepwarm() {
+install_keepalive() {
   require_root
   require_systemd
   local arch src unit
@@ -185,7 +185,7 @@ install_keepwarm() {
   log "Verify: ${BIN_NAME} -status"
 }
 
-uninstall_keepwarm() {
+uninstall_keepalive() {
   require_root
   require_systemd
 
@@ -207,16 +207,16 @@ uninstall_keepwarm() {
     rm -f "${BIN_DEST}"
   fi
 
-  log "keepwarm uninstalled."
+  log "keepalive uninstalled."
 }
 
 main() {
   case "${1:-}" in
-    --uninstall|-u) uninstall_keepwarm ;;
-    ""|--install)   install_keepwarm ;;
+    --uninstall|-u) uninstall_keepalive ;;
+    ""|--install)   install_keepalive ;;
     -h|--help)
       cat <<EOF
-keepwarm installer
+keepalive installer
 
 Usage:
   sudo ./scripts/install.sh              install + enable + start the service
@@ -224,7 +224,7 @@ Usage:
   curl -fsSL ${RAW_BASE}/scripts/install.sh | sudo bash
 
 Env:
-  KEEPWARM_VERSION=v2026.10.30   pin a release tag (default: latest)
+  KEEPALIVE_VERSION=v2026.10.30   pin a release tag (default: latest)
 EOF
       ;;
     *) die "unknown argument: $1 (try --help)" ;;

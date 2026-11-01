@@ -1,4 +1,4 @@
-# keepwarm — 甲骨文云 / Oracle Cloud (OCI) Always Free 实例保活 · 防闲置回收
+# keepalive — 甲骨文云 / Oracle Cloud (OCI) Always Free 实例保活 · 防闲置回收
 
 **简体中文** | [English](README.en.md)
 
@@ -17,6 +17,10 @@ systemd 常驻、纯 Go 标准库、零外部依赖、可静态交叉编译。
 
 > Adaptive keepalive for Oracle Cloud (OCI) Always Free instances — stops idle
 > reclamation without burning CPU or bandwidth you don't need. Static, dependency-free.
+
+> **复刻自**：[`0xarkstar/keepwarm`](https://github.com/0xarkstar/keepwarm)（MIT 许可）。
+> 本项目在其源码基础上将项目与二进制重命名为 **`keepalive`**，并修复了内存持有量超调的缺陷。
+> 原始设计、自适应机制与实现均归功于上游作者，版权声明见 [LICENSE](LICENSE)。
 
 ## 目录
 
@@ -45,7 +49,7 @@ OCI 会周期性回收闲置的 Always Free 计算实例。按 Oracle 的政策�
 
 因为这是 **AND** 条件，所以**任意一项**高于阈值即可避免回收。
 
-`keepwarm` 就利用这一点：默认把**内存**这一维顶住，因为占住内存是代价最低的做法。
+`keepalive` 就利用这一点：默认把**内存**这一维顶住，因为占住内存是代价最低的做法。
 
 ## 为什么优先用内存
 
@@ -58,9 +62,9 @@ CPU 与网络两种保活方式也实现了，但**默认关闭**。
 ## 与 NeverIdle 的区别
 
 知名的 [`layou233/NeverIdle`](https://github.com/layou233/NeverIdle) 已长期不更新，思路比较粗暴。
-`keepwarm` 有意做得不同：
+`keepalive` 有意做得不同：
 
-| | NeverIdle | keepwarm |
+| | NeverIdle | keepalive |
 |---|---|---|
 | 主要机制 | 烧 CPU | **占内存**（最便宜、95 分位平坦） |
 | 负载强度 | 固定不变 | **自适应**：先量自己的用量，只补差额 |
@@ -71,7 +75,7 @@ CPU 与网络两种保活方式也实现了，但**默认关闭**。
 
 ## 安装
 
-> **关于本项目**：`keepwarm` 的维护分支，持续跟进并修复上游已知问题
+> **关于本项目**：`keepalive` 复刻自 `keepwarm`，并在持续跟进修复已知问题
 > （内存持有超额振荡的修复见[更新记录](#更新记录)）。
 > **下面的安装方式都指向本仓库的发布产物。**
 >
@@ -91,7 +95,7 @@ CPU 与网络两种保活方式也实现了，但**默认关闭**。
 curl -fsSL https://raw.githubusercontent.com/haohaomin/oracle-always-free-keepalive/main/scripts/install.sh | sudo bash
 ```
 
-固定某个日期版本：`KEEPWARM_VERSION=v2026.10.30 curl ... | sudo bash`
+固定某个日期版本：`KEEPALIVE_VERSION=v2026.10.30 curl ... | sudo bash`
 卸载：`curl ... | sudo bash -s -- --uninstall`
 
 ### 方式 A — `go install`
@@ -100,10 +104,10 @@ curl -fsSL https://raw.githubusercontent.com/haohaomin/oracle-always-free-keepal
 go install github.com/haohaomin/oracle-always-free-keepalive@latest
 ```
 
-二进制名跟随模块名，装好后重命名为 `keepwarm`：
+二进制名跟随模块名，装好后重命名为 `keepalive`：
 
 ```sh
-sudo install -m 0755 "$(go env GOPATH)/bin/oracle-always-free-keepalive" /usr/local/bin/keepwarm
+sudo install -m 0755 "$(go env GOPATH)/bin/oracle-always-free-keepalive" /usr/local/bin/keepalive
 ```
 
 再按下面的 systemd 方式配置常驻。
@@ -121,9 +125,9 @@ sudo ./scripts/install.sh
 检查：
 
 ```sh
-keepwarm -status
-systemctl status keepwarm
-journalctl -u keepwarm -f
+keepalive -status
+systemctl status keepalive
+journalctl -u keepalive -f
 ```
 
 卸载：
@@ -135,13 +139,13 @@ sudo ./scripts/install.sh --uninstall
 ### 方式 C — 手动下载 release 二进制
 
 从 **[本仓库 Releases](https://github.com/haohaomin/oracle-always-free-keepalive/releases)** 下载对应架构
-（A1 用 `keepwarm-linux-arm64`，E2 Micro 用 `keepwarm-linux-amd64`），并核对 `SHA256SUMS`：
+（A1 用 `keepalive-linux-arm64`，E2 Micro 用 `keepalive-linux-amd64`），并核对 `SHA256SUMS`：
 
 ```sh
-curl -fsSLO https://github.com/haohaomin/oracle-always-free-keepalive/releases/latest/download/keepwarm-linux-arm64
+curl -fsSLO https://github.com/haohaomin/oracle-always-free-keepalive/releases/latest/download/keepalive-linux-arm64
 curl -fsSLO https://github.com/haohaomin/oracle-always-free-keepalive/releases/latest/download/SHA256SUMS
 sha256sum -c SHA256SUMS --ignore-missing
-chmod +x keepwarm-linux-arm64 && sudo mv keepwarm-linux-arm64 /usr/local/bin/keepwarm
+chmod +x keepalive-linux-arm64 && sudo mv keepalive-linux-arm64 /usr/local/bin/keepalive
 ```
 
 （上面的一键脚本就是把这个流程加上 systemd 配置自动做完。）
@@ -149,8 +153,8 @@ chmod +x keepwarm-linux-arm64 && sudo mv keepwarm-linux-arm64 /usr/local/bin/kee
 ### 方式 D — Docker
 
 ```sh
-docker build -t keepwarm .
-docker run -d --name keepwarm --restart unless-stopped keepwarm -mem 30%
+docker build -t keepalive .
+docker run -d --name keepalive --restart unless-stopped keepalive -mem 30%
 ```
 
 > 容器里能看到宿主机的 `/proc`，所以检测是准的；但占住的内存会算进容器的 cgroup 限制。
@@ -161,17 +165,17 @@ docker run -d --name keepwarm --restart unless-stopped keepwarm -mem 30%
 默认参数适用于最常见场景（把总内存利用率维持在 30%，每 30 秒检查一次）：
 
 ```sh
-keepwarm
+keepalive
 ```
 
 只看它会做什么、不改动任何东西：
 
 ```sh
-keepwarm -status
+keepalive -status
 ```
 
 ```text
-keepwarm v1.0.0 — status
+keepalive v1.0.0 — status
   OS / CPUs:        linux, 4 logical cores
   Total RAM:        24.00 GiB
   Used RAM:         3.10 GiB (12.9%)
@@ -181,41 +185,41 @@ keepwarm v1.0.0 — status
   Network:          disabled
 ```
 
-上例中机器内存利用率 12.9%、目标 30%（=7.2 GiB），所以 keepwarm 只占住 **4.1 GiB 的差额**，
+上例中机器内存利用率 12.9%、目标 30%（=7.2 GiB），所以 keepalive 只占住 **4.1 GiB 的差额**，
 多一点都不占。之后你自己的业务用得更多，它会自动缩回去。
 
 ## 参数
 
-所有参数也可用 `KEEPWARM_*` 环境变量设置（大写，短横线换下划线）。
+所有参数也可用 `KEEPALIVE_*` 环境变量设置（大写，短横线换下划线）。
 **优先级：命令行参数 > 环境变量 > 默认值。**
 
 | 参数 | 环境变量 | 默认值 | 说明 |
 |---|---|---|---|
-| `-mem` | `KEEPWARM_MEM` | `30%` | 要维持的**总**内存利用率目标。可写百分比（`30%`）或绝对大小（`512MiB`、`2GiB`）。自适应：只占差额。**主机制，默认开启。** |
-| `-cpu` | `KEEPWARM_CPU` | `0.0`（关） | CPU 利用率**下限**，取全部核心的比例 `[0.0–1.0]`。自适应：近期利用率低于下限时，按算出的时间片做 SHA-256 运算；有机负载已达下限则什么都不做。 |
-| `-net` | `KEEPWARM_NET` | `""`（关） | 设为时长（如 `6h`）后，按该频率发一次轻量 HTTPS GET，让网络维度保持非闲置。 |
-| `-net-url` | `KEEPWARM_NET_URL` | `https://speed.cloudflare.com/__down?bytes=10000000` | 网络探测的目标地址（约 10 MB），可改成任意地址；响应体读完即丢。 |
-| `-net-timeout` | `KEEPWARM_NET_TIMEOUT` | `60s` | 单次网络探测的超时。 |
-| `-interval` | `KEEPWARM_INTERVAL` | `30s` | 控制循环周期。 |
-| `-priority` | `KEEPWARM_PRIORITY` | `19` | Linux 下的进程 nice 值（`-20`..`19`，`19` 最低）。保证真实业务永远抢占它。非 Linux 无效果。 |
+| `-mem` | `KEEPALIVE_MEM` | `30%` | 要维持的**总**内存利用率目标。可写百分比（`30%`）或绝对大小（`512MiB`、`2GiB`）。自适应：只占差额。**主机制，默认开启。** |
+| `-cpu` | `KEEPALIVE_CPU` | `0.0`（关） | CPU 利用率**下限**，取全部核心的比例 `[0.0–1.0]`。自适应：近期利用率低于下限时，按算出的时间片做 SHA-256 运算；有机负载已达下限则什么都不做。 |
+| `-net` | `KEEPALIVE_NET` | `""`（关） | 设为时长（如 `6h`）后，按该频率发一次轻量 HTTPS GET，让网络维度保持非闲置。 |
+| `-net-url` | `KEEPALIVE_NET_URL` | `https://speed.cloudflare.com/__down?bytes=10000000` | 网络探测的目标地址（约 10 MB），可改成任意地址；响应体读完即丢。 |
+| `-net-timeout` | `KEEPALIVE_NET_TIMEOUT` | `60s` | 单次网络探测的超时。 |
+| `-interval` | `KEEPALIVE_INTERVAL` | `30s` | 控制循环周期。 |
+| `-priority` | `KEEPALIVE_PRIORITY` | `19` | Linux 下的进程 nice 值（`-20`..`19`，`19` 最低）。保证真实业务永远抢占它。非 Linux 无效果。 |
 | `-once` / `-status` | — | — | 打印检测到的内存、当前 CPU/内存占比、以及它**将会**做什么，然后退出。 |
-| `-verbose` | `KEEPWARM_VERBOSE` | `false` | 每次动作输出结构化（`log/slog`）调试日志。 |
+| `-verbose` | `KEEPALIVE_VERBOSE` | `false` | 每次动作输出结构化（`log/slog`）调试日志。 |
 | `-version` | — | — | 打印版本后退出。 |
 
 ### 示例
 
 ```sh
 # 用绝对大小而不是百分比：
-keepwarm -mem 2GiB
+keepalive -mem 2GiB
 
 # 同时把 CPU 托到 10% 下限（只在机器空闲时才烧）：
-keepwarm -mem 30% -cpu 0.10
+keepalive -mem 30% -cpu 0.10
 
 # 只用网络维度保活（每小时一次极小 GET）：
-keepwarm -mem 0% -net 1h
+keepalive -mem 0% -net 1h
 
 # 调试用的详细日志 + 快速循环：
-keepwarm -verbose -interval 5s -status
+keepalive -verbose -interval 5s -status
 ```
 
 ## 自适应原理
@@ -253,7 +257,7 @@ burnFraction = (f − u) / (1 − u)
 ## 从源码构建
 
 ```sh
-make build      # 本机二进制 -> ./keepwarm
+make build      # 本机二进制 -> ./keepalive
 make test       # go test ./...
 make vet        # go vet ./...
 make cross      # 静态 linux/amd64 + linux/arm64 -> ./dist
@@ -262,15 +266,15 @@ make clean
 
 ## 安全与合理使用
 
-`keepwarm` **仅**用于让你**自己的、合法开通**的 OCI Always Free 实例不被回收。
+`keepalive` **仅**用于让你**自己的、合法开通**的 OCI Always Free 实例不被回收。
 它在设计上就是**低浪费**的：只补到刚好越过闲置阈值、以最低调度优先级运行、
 从不跑吃带宽的测速。请遵守 Oracle 的服务条款与资源额度，
 不要用它绕过配额，或保留你并不应得的资源。
 
 ## 更新记录
 
-本仓库在 MIT 许可的 `keepwarm`（原始作者 `0xarkstar`）之上持续维护，
-基线为 commit `24cde41bbf7522b77b4308829764e710f1d5ddc9`，当前包含以下改动。
+本项目复刻自 MIT 许可的 [`0xarkstar/keepwarm`](https://github.com/0xarkstar/keepwarm)，
+基线为 commit `24cde41bbf7522b77b4308829764e710f1d5ddc9`；在此基础上完成重命名与以下改动。
 
 ### 内存持有量超出目标（超调振荡）
 

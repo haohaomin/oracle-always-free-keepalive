@@ -80,11 +80,11 @@ jobs:
           LDFLAGS="-s -w -X main.Version=${VERSION}"
           for t in linux/amd64 linux/arm64 darwin/arm64; do
             os="${t%/*}"; arch="${t#*/}"
-            out="dist/keepwarm-${os}-${arch}"
+            out="dist/keepalive-${os}-${arch}"
             echo "building $out"
             GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "$LDFLAGS" -o "$out" ./
           done
-          (cd dist && sha256sum keepwarm-* > SHA256SUMS)
+          (cd dist && sha256sum keepalive-* > SHA256SUMS)
           echo "--- SHA256SUMS ---"; cat dist/SHA256SUMS
 
       - name: Publish release
@@ -96,7 +96,7 @@ jobs:
           generate_release_notes: true
           make_latest: true
           files: |
-            dist/keepwarm-linux-amd64
-            dist/keepwarm-linux-arm64
-            dist/keepwarm-darwin-arm64
+            dist/keepalive-linux-amd64
+            dist/keepalive-linux-arm64
+            dist/keepalive-darwin-arm64
             dist/SHA256SUMS

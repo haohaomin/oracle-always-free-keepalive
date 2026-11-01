@@ -1,4 +1,4 @@
-# keepwarm — keep your Oracle Cloud (OCI) Always Free instance alive
+# keepalive — keep your Oracle Cloud (OCI) Always Free instance alive
 
 [简体中文](README.md) | **English**
 
@@ -15,6 +15,11 @@ compute instance from being reclaimed for being idle — without burning CPU or
 bandwidth you don't need. Works on both **VM.Standard.A1.Flex (ARM64, Ampere)** and
 **VM.Standard.E2.1.Micro (AMD64)**; systemd-persistent, Go standard library only,
 statically cross-compiled.
+
+> **Reproduced from**: [`0xarkstar/keepwarm`](https://github.com/0xarkstar/keepwarm) (MIT).
+> This project renames it to **`keepalive`** and fixes the memory over-hold defect on top of
+> the original source. The design, the adaptive mechanism and the implementation are the
+> upstream author's work; see [LICENSE](LICENSE).
 
 ## Contents
 
@@ -46,7 +51,7 @@ historically 10%):
 Because it is an **AND** condition, keeping **any single one** of these dimensions
 above threshold is sufficient to prevent reclamation.
 
-`keepwarm` exploits that: it keeps the **memory** dimension up by default, because
+`keepalive` exploits that: it keeps the **memory** dimension up by default, because
 holding memory is by far the cheapest defeater.
 
 ## Why memory-first
@@ -60,9 +65,9 @@ CPU and network defeaters are available too, but they are **off by default**.
 ## How it differs from NeverIdle
 
 The well-known [`layou233/NeverIdle`](https://github.com/layou233/NeverIdle) is
-dormant and takes a blunt approach. `keepwarm` is deliberately different:
+dormant and takes a blunt approach. `keepalive` is deliberately different:
 
-| | NeverIdle | keepwarm |
+| | NeverIdle | keepalive |
 |---|---|---|
 | Primary mechanism | Burns CPU | **Holds memory** (cheapest, flat 95th-pct) |
 | Load level | Blindly constant | **Adaptive** — measures your own usage, adds only the deficit |
@@ -73,8 +78,8 @@ dormant and takes a blunt approach. `keepwarm` is deliberately different:
 
 ## Install
 
-> **About this project**: the maintained branch of `keepwarm`, which keeps fixing the
-> known upstream issues (the memory over-hold oscillation fix is in the
+> **About this project**: `keepalive` is reproduced from `keepwarm` and keeps fixing the
+> known issues (the memory over-hold oscillation fix is in the
 > [Changelog](#changelog)).
 > **Every install path below points at this repo's own release artifacts.**
 >
@@ -97,7 +102,7 @@ systemd service:
 curl -fsSL https://raw.githubusercontent.com/haohaomin/oracle-always-free-keepalive/main/scripts/install.sh | sudo bash
 ```
 
-Pin a specific date tag with `KEEPWARM_VERSION=v2026.10.30 curl ... | sudo bash`.
+Pin a specific date tag with `KEEPALIVE_VERSION=v2026.10.30 curl ... | sudo bash`.
 Uninstall with `curl ... | sudo bash -s -- --uninstall`.
 
 ### Option A — `go install`
@@ -109,7 +114,7 @@ go install github.com/haohaomin/oracle-always-free-keepalive@latest
 The binary is named after the module; install it under the expected name:
 
 ```sh
-sudo install -m 0755 "$(go env GOPATH)/bin/oracle-always-free-keepalive" /usr/local/bin/keepwarm
+sudo install -m 0755 "$(go env GOPATH)/bin/oracle-always-free-keepalive" /usr/local/bin/keepalive
 ```
 
 Then use the systemd path below for persistence.
@@ -128,9 +133,9 @@ sudo ./scripts/install.sh
 Check it:
 
 ```sh
-keepwarm -status
-systemctl status keepwarm
-journalctl -u keepwarm -f
+keepalive -status
+systemctl status keepalive
+journalctl -u keepalive -f
 ```
 
 Uninstall:
@@ -143,14 +148,14 @@ sudo ./scripts/install.sh --uninstall
 
 Download the binary for your architecture from
 **[this repo's Releases](https://github.com/haohaomin/oracle-always-free-keepalive/releases)**
-(`keepwarm-linux-arm64` for the A1 shape, `keepwarm-linux-amd64` for the E2 Micro
+(`keepalive-linux-arm64` for the A1 shape, `keepalive-linux-amd64` for the E2 Micro
 shape) and verify it against `SHA256SUMS`:
 
 ```sh
-curl -fsSLO https://github.com/haohaomin/oracle-always-free-keepalive/releases/latest/download/keepwarm-linux-arm64
+curl -fsSLO https://github.com/haohaomin/oracle-always-free-keepalive/releases/latest/download/keepalive-linux-arm64
 curl -fsSLO https://github.com/haohaomin/oracle-always-free-keepalive/releases/latest/download/SHA256SUMS
 sha256sum -c SHA256SUMS --ignore-missing
-chmod +x keepwarm-linux-arm64 && sudo mv keepwarm-linux-arm64 /usr/local/bin/keepwarm
+chmod +x keepalive-linux-arm64 && sudo mv keepalive-linux-arm64 /usr/local/bin/keepalive
 ```
 
 (The one-liner above automates exactly this plus the systemd setup.)
@@ -158,8 +163,8 @@ chmod +x keepwarm-linux-arm64 && sudo mv keepwarm-linux-arm64 /usr/local/bin/kee
 ### Option D — Docker
 
 ```sh
-docker build -t keepwarm .
-docker run -d --name keepwarm --restart unless-stopped keepwarm -mem 30%
+docker build -t keepalive .
+docker run -d --name keepalive --restart unless-stopped keepalive -mem 30%
 ```
 
 > A container sees the host `/proc`, so detection works, but held memory counts
@@ -172,17 +177,17 @@ The defaults are sensible for the common case (keep memory at 30% of total RAM,
 check every 30 s):
 
 ```sh
-keepwarm
+keepalive
 ```
 
 See what it would do without changing anything:
 
 ```sh
-keepwarm -status
+keepalive -status
 ```
 
 ```text
-keepwarm v1.0.0 — status
+keepalive v1.0.0 — status
   OS / CPUs:        linux, 4 logical cores
   Total RAM:        24.00 GiB
   Used RAM:         3.10 GiB (12.9%)
@@ -193,42 +198,42 @@ keepwarm v1.0.0 — status
 ```
 
 In that example the box is at 12.9% memory and the 30% target is 7.2 GiB, so
-keepwarm would hold the **4.1 GiB deficit** — and nothing more. If your own
-workload later uses more memory, keepwarm shrinks its buffer automatically.
+keepalive would hold the **4.1 GiB deficit** — and nothing more. If your own
+workload later uses more memory, keepalive shrinks its buffer automatically.
 
 ## Flags
 
-All flags can also be set via `KEEPWARM_*` environment variables (uppercase,
+All flags can also be set via `KEEPALIVE_*` environment variables (uppercase,
 dashes → underscores). **Flags take precedence over env vars, which take
 precedence over defaults.**
 
 | Flag | Env var | Default | Description |
 |---|---|---|---|
-| `-mem` | `KEEPWARM_MEM` | `30%` | Target **total** memory utilization to maintain. Accepts a percent (`30%`) or an absolute size (`512MiB`, `2GiB`). Adaptive: holds only the deficit needed. **Primary mechanism, on by default.** |
-| `-cpu` | `KEEPWARM_CPU` | `0.0` (off) | Target CPU utilization **floor** as a fraction of all cores `[0.0–1.0]`. Adaptive: if recent utilization is below the floor, does SHA-256 work for a computed slice of the interval; if organic load already meets it, does nothing. |
-| `-net` | `KEEPWARM_NET` | `""` (off) | If set to a duration (e.g. `6h`), performs one lightweight outbound HTTPS GET that often to keep the network dimension non-idle. |
-| `-net-url` | `KEEPWARM_NET_URL` | `https://speed.cloudflare.com/__down?bytes=10000000` | Endpoint for the network ping (~10 MB). Point it anywhere you like; the body is read and discarded. |
-| `-net-timeout` | `KEEPWARM_NET_TIMEOUT` | `60s` | Per-request timeout for the network ping. |
-| `-interval` | `KEEPWARM_INTERVAL` | `30s` | Control-loop tick. |
-| `-priority` | `KEEPWARM_PRIORITY` | `19` | Process niceness on Linux (`-20`..`19`, `19` = lowest). Ensures real workloads always preempt keepwarm. No-op on non-Linux. |
-| `-once` / `-status` | — | — | Print detected RAM, current CPU%/mem%, and what keepwarm **would** do, then exit. |
-| `-verbose` | `KEEPWARM_VERBOSE` | `false` | Structured (`log/slog`) debug lines on every action. |
+| `-mem` | `KEEPALIVE_MEM` | `30%` | Target **total** memory utilization to maintain. Accepts a percent (`30%`) or an absolute size (`512MiB`, `2GiB`). Adaptive: holds only the deficit needed. **Primary mechanism, on by default.** |
+| `-cpu` | `KEEPALIVE_CPU` | `0.0` (off) | Target CPU utilization **floor** as a fraction of all cores `[0.0–1.0]`. Adaptive: if recent utilization is below the floor, does SHA-256 work for a computed slice of the interval; if organic load already meets it, does nothing. |
+| `-net` | `KEEPALIVE_NET` | `""` (off) | If set to a duration (e.g. `6h`), performs one lightweight outbound HTTPS GET that often to keep the network dimension non-idle. |
+| `-net-url` | `KEEPALIVE_NET_URL` | `https://speed.cloudflare.com/__down?bytes=10000000` | Endpoint for the network ping (~10 MB). Point it anywhere you like; the body is read and discarded. |
+| `-net-timeout` | `KEEPALIVE_NET_TIMEOUT` | `60s` | Per-request timeout for the network ping. |
+| `-interval` | `KEEPALIVE_INTERVAL` | `30s` | Control-loop tick. |
+| `-priority` | `KEEPALIVE_PRIORITY` | `19` | Process niceness on Linux (`-20`..`19`, `19` = lowest). Ensures real workloads always preempt keepalive. No-op on non-Linux. |
+| `-once` / `-status` | — | — | Print detected RAM, current CPU%/mem%, and what keepalive **would** do, then exit. |
+| `-verbose` | `KEEPALIVE_VERBOSE` | `false` | Structured (`log/slog`) debug lines on every action. |
 | `-version` | — | — | Print version and exit. |
 
 ### Examples
 
 ```sh
 # Hold an absolute amount instead of a percentage:
-keepwarm -mem 2GiB
+keepalive -mem 2GiB
 
 # Also keep CPU above a 10% floor (only burns when the box is otherwise idle):
-keepwarm -mem 30% -cpu 0.10
+keepalive -mem 30% -cpu 0.10
 
 # Memory off-loaded to the network dimension only (hourly tiny GET):
-keepwarm -mem 0% -net 1h
+keepalive -mem 0% -net 1h
 
 # Verbose, fast loop for debugging:
-keepwarm -verbose -interval 5s -status
+keepalive -verbose -interval 5s -status
 ```
 
 ## How the adaptive math works
@@ -237,7 +242,7 @@ keepwarm -verbose -interval 5s -status
 `used − whatKeepwarmHolds`. To reach the target it holds `target − organic`,
 clamped to `[0, total]`. Held pages are touched (one page size apart) so the
 kernel keeps them resident and counts them as used. If your workload grows,
-keepwarm shrinks; if it shrinks, keepwarm grows back.
+keepalive shrinks; if it shrinks, keepalive grows back.
 
 Two details keep the loop honest (see [Changelog](#changelog)):
 
@@ -271,7 +276,7 @@ core, at niceness 19 so it never starves real work.
 ## Build from source
 
 ```sh
-make build      # host binary -> ./keepwarm
+make build      # host binary -> ./keepalive
 make test       # go test ./...
 make vet        # go vet ./...
 make cross      # static linux/amd64 + linux/arm64 -> ./dist
@@ -280,7 +285,7 @@ make clean
 
 ## Safety & ethics
 
-`keepwarm` is intended **only** for keeping **your own, legitimately provisioned**
+`keepalive` is intended **only** for keeping **your own, legitimately provisioned**
 OCI Always Free instance alive. It is designed to be **low-waste by construction**
 — it adds the minimum load needed to clear the idle threshold and nothing more,
 runs at the lowest scheduling priority, and never runs bandwidth-heavy speedtests.
@@ -289,8 +294,9 @@ circumvent quotas or to keep resources you aren't entitled to.
 
 ## Changelog
 
-Maintained on top of the MIT-licensed `keepwarm` by `0xarkstar`, based on commit
-`24cde41bbf7522b77b4308829764e710f1d5ddc9` and adds the following.
+Reproduced from the MIT-licensed [`0xarkstar/keepwarm`](https://github.com/0xarkstar/keepwarm)
+at commit `24cde41bbf7522b77b4308829764e710f1d5ddc9`; this tree adds the rename and the
+changes below.
 
 ### Memory holder overshot its target (over-hold oscillation)
 

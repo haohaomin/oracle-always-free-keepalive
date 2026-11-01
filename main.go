@@ -1,10 +1,10 @@
-// Command keepwarm is a tiny, dependency-free daemon that keeps an OCI Always
+// Command keepalive is a tiny, dependency-free daemon that keeps an OCI Always
 // Free compute instance from being reclaimed for idleness. OCI flags an instance
 // as idle only when, over a rolling 7-day window, ALL of CPU (95th percentile),
 // network, and memory utilization fall below threshold. Because that is an AND
 // condition, keeping ANY ONE dimension above threshold is sufficient.
 //
-// keepwarm is memory-first (holding memory is the cheapest, most reliable
+// keepalive is memory-first (holding memory is the cheapest, most reliable
 // defeater) and adaptive (it measures the instance's own utilization and adds
 // only the minimum extra load needed to stay above a floor).
 package main
@@ -29,23 +29,23 @@ var Version = "dev"
 func main() {
 	cfg, action, err := parseConfig(os.Args[1:], os.LookupEnv)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "keepwarm:", err)
+		fmt.Fprintln(os.Stderr, "keepalive:", err)
 		os.Exit(2)
 	}
 
 	switch action {
 	case actionVersion:
-		fmt.Printf("keepwarm %s\n", Version)
+		fmt.Printf("keepalive %s\n", Version)
 		return
 	case actionStatus:
 		if err := printStatus(cfg, true); err != nil {
-			fmt.Fprintln(os.Stderr, "keepwarm:", err)
+			fmt.Fprintln(os.Stderr, "keepalive:", err)
 			os.Exit(1)
 		}
 		return
 	case actionOnce:
 		if err := printStatus(cfg, false); err != nil {
-			fmt.Fprintln(os.Stderr, "keepwarm:", err)
+			fmt.Fprintln(os.Stderr, "keepalive:", err)
 			os.Exit(1)
 		}
 		return
@@ -65,7 +65,7 @@ func main() {
 	defer stop()
 
 	if err := run(ctx, cfg, log); err != nil {
-		log.Error("keepwarm exited with error", "err", err)
+		log.Error("keepalive exited with error", "err", err)
 		os.Exit(1)
 	}
 }
@@ -83,7 +83,7 @@ func newLogger(verbose bool) *slog.Logger {
 // run executes the control loop until the context is cancelled, then releases
 // all held resources.
 func run(ctx context.Context, cfg Config, log *slog.Logger) error {
-	log.Info("keepwarm starting",
+	log.Info("keepalive starting",
 		"version", Version,
 		"mem_target", cfg.Mem.String(),
 		"cpu_floor", cfg.CPUFloor,
@@ -101,7 +101,7 @@ func run(ctx context.Context, cfg Config, log *slog.Logger) error {
 
 	defer func() {
 		mem.Release()
-		log.Info("keepwarm stopped, memory released")
+		log.Info("keepalive stopped, memory released")
 	}()
 
 	// Prime the CPU sampler so the first tick has a baseline delta.
@@ -209,12 +209,12 @@ func tick(
 	return prevCPU, cpuOK
 }
 
-// printStatus reads current stats and reports what keepwarm would do. When
+// printStatus reads current stats and reports what keepalive would do. When
 // sampleCPU is true (the -status path) it takes a short CPU sample window.
 func printStatus(cfg Config, sampleCPU bool) error {
 	mi, memErr := sysstat.ReadMem()
 
-	fmt.Printf("keepwarm %s — status\n", Version)
+	fmt.Printf("keepalive %s — status\n", Version)
 	fmt.Printf("  OS / CPUs:        %s, %d logical cores\n", osName(), sysstat.NumCPU())
 
 	if memErr != nil {

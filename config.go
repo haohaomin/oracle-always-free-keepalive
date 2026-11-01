@@ -35,24 +35,24 @@ const (
 // envLookup matches os.LookupEnv; injected for testability.
 type envLookup func(key string) (string, bool)
 
-// parseConfig parses CLI args and KEEPWARM_* environment variables into a
+// parseConfig parses CLI args and KEEPALIVE_* environment variables into a
 // Config. Flags take precedence over environment variables, which take
 // precedence over defaults. It returns the selected action so main can branch
 // to the version/status/once paths.
 func parseConfig(args []string, env envLookup) (Config, action, error) {
-	fs := flag.NewFlagSet("keepwarm", flag.ContinueOnError)
+	fs := flag.NewFlagSet("keepalive", flag.ContinueOnError)
 	fs.SetOutput(io.Discard) // we format our own error
 
-	// Defaults, overridable by KEEPWARM_* env vars before flags are applied.
+	// Defaults, overridable by KEEPALIVE_* env vars before flags are applied.
 	var (
-		memStr      = envOr(env, "KEEPWARM_MEM", "30%")
-		cpuFloor    = envFloatOr(env, "KEEPWARM_CPU", 0.0)
-		netStr      = envOr(env, "KEEPWARM_NET", "")
-		netURL      = envOr(env, "KEEPWARM_NET_URL", waste.DefaultNetURL)
-		netTimeout  = envDurationOr(env, "KEEPWARM_NET_TIMEOUT", 60*time.Second)
-		interval    = envDurationOr(env, "KEEPWARM_INTERVAL", 30*time.Second)
-		priority    = envIntOr(env, "KEEPWARM_PRIORITY", 19)
-		verbose     = envBoolOr(env, "KEEPWARM_VERBOSE", false)
+		memStr      = envOr(env, "KEEPALIVE_MEM", "30%")
+		cpuFloor    = envFloatOr(env, "KEEPALIVE_CPU", 0.0)
+		netStr      = envOr(env, "KEEPALIVE_NET", "")
+		netURL      = envOr(env, "KEEPALIVE_NET_URL", waste.DefaultNetURL)
+		netTimeout  = envDurationOr(env, "KEEPALIVE_NET_TIMEOUT", 60*time.Second)
+		interval    = envDurationOr(env, "KEEPALIVE_INTERVAL", 30*time.Second)
+		priority    = envIntOr(env, "KEEPALIVE_PRIORITY", 19)
+		verbose     = envBoolOr(env, "KEEPALIVE_VERBOSE", false)
 		showVersion bool
 		showStatus  bool
 		runOnce     bool

@@ -1,5 +1,5 @@
 [Unit]
-Description=keepwarm - keep an OCI Always Free instance from being reclaimed for idleness
+Description=keepalive - keep an OCI Always Free instance from being reclaimed for idleness
 Documentation=https://github.com/haohaomin/oracle-always-free-keepalive
 After=network-online.target
 Wants=network-online.target
@@ -7,8 +7,8 @@ Wants=network-online.target
 [Service]
 Type=simple
 # Note: literal percent signs must be escaped as %% in systemd unit files.
-ExecStart=/usr/local/bin/keepwarm -mem 30%% -interval 30s
-# Lowest scheduling priority so any real workload always preempts keepwarm.
+ExecStart=/usr/local/bin/keepalive -mem 30%% -interval 30s
+# Lowest scheduling priority so any real workload always preempts keepalive.
 Nice=19
 Restart=always
 RestartSec=10

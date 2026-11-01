@@ -1,6 +1,6 @@
-# keepwarm — build automation. Standard-library Go, no external deps.
+# keepalive — build automation. Standard-library Go, no external deps.
 
-BINARY  := keepwarm
+BINARY  := keepalive
 PKG     := ./
 DIST    := dist
 # Derive a version from git tags, falling back to "dev" outside a checkout.

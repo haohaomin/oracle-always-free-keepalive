@@ -8,7 +8,7 @@ import (
 )
 
 // setPriority lowers (or raises) this process's scheduling niceness. nice ranges
-// from -20 (highest priority) to 19 (lowest). keepwarm defaults to 19 so any
+// from -20 (highest priority) to 19 (lowest). keepalive defaults to 19 so any
 // real workload always preempts it. Uses the PRIO_PROCESS target with pid 0
 // (the calling process).
 func setPriority(nice int) error {
